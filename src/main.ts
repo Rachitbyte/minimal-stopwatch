@@ -96,6 +96,7 @@ function renderUI() {
     controls.style.visibility = 'visible';
     clockDate.style.display = 'none';
     timeDisplay.el.style.display = 'flex';
+    timeDisplay.el.classList.remove('pulse');
     countdownInput.hide();
     
     if (state.stopwatch.status === 'running') {
@@ -294,10 +295,18 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     btnReset.click();
   } else if (e.key === ' ' || e.code === 'Space') {
-    // Avoid double triggering if button is focused
-    if (document.activeElement?.tagName === 'BUTTON') return;
+    if (document.activeElement?.tagName === 'BUTTON') {
+      const btn = document.activeElement as HTMLElement;
+      const isCurrentTab = btn.getAttribute('data-mode') === state.mode;
+      if (!isCurrentTab && btn !== btnStart) {
+        return; // Allow native interaction with other buttons
+      }
+    }
     e.preventDefault();
     btnStart.click();
+  } else if (e.key.toLowerCase() === 'r') {
+    e.preventDefault();
+    btnReset.click();
   }
 });
 
