@@ -1,0 +1,277 @@
+@import '@fontsource/geist-sans';
+@import '@fontsource/geist-mono';
+
+:root {
+  --color-bg: #000000;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #A3A3A3;
+  --color-surface: #262626;
+  --color-surface-raised: #171717;
+
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Geist", system-ui, sans-serif;
+  
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  --radius-pill: 9999px;
+  --radius-md: 12px;
+}
+
+/* Reset & Base */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Disable pull-to-refresh on mobile */
+  overscroll-behavior-y: none;
+  /* Prevent text selection */
+  user-select: none;
+  -webkit-user-select: none;
+  /* Prevent tap highlight */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Base App Layout */
+#app {
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.time-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+.time-display {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: clamp(32px, 10vw, 80px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  contain: layout paint;
+}
+
+.time-display.idle {
+  opacity: 0.6;
+}
+
+.digit-group {
+  display: flex;
+  align-items: center;
+}
+
+.digit {
+  height: 1em;
+  overflow: hidden;
+  position: relative;
+  width: 1ch;
+  display: flex;
+  justify-content: center;
+}
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  transition: transform 350ms cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+.strip.no-transition {
+  transition: none !important;
+}
+
+.strip-num {
+  height: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.colon {
+  margin: 0 0.1em;
+  transform: translateY(-0.05em);
+}
+
+.centis {
+  font-size: 0.6em;
+  opacity: 0.8;
+  margin-left: 0.2em;
+}
+
+/* Controls */
+.controls {
+  padding: var(--spacing-lg);
+  display: flex;
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 400px;
+  justify-content: center;
+  padding-bottom: var(--spacing-2xl);
+}
+
+button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  height: 48px;
+  padding: 0 var(--spacing-xl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 150ms, transform 150ms;
+}
+
+button:active {
+  opacity: 0.7;
+  transform: scale(0.96);
+}
+
+button.primary {
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  flex: 1;
+}
+
+button.secondary {
+  border: 1px solid var(--color-surface);
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.mode-switcher {
+  margin: var(--spacing-md) auto;
+  display: inline-flex;
+  background: var(--color-surface);
+  border-radius: var(--radius-pill);
+  padding: 4px;
+}
+.mode-switcher button {
+  height: 36px;
+  padding: 0 16px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  flex: none;
+}
+.mode-switcher button.active {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* Countdown Inputs */
+.countdown-input-container {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.picker-container {
+  display: flex;
+  width: 100%;
+  height: 150px;
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
+}
+
+.picker-column {
+  flex: 1;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none; /* Firefox */
+  font-family: var(--font-mono);
+  font-size: 24px;
+}
+.picker-column::-webkit-scrollbar { display: none; /* Chrome */ }
+
+.picker-spacer {
+  height: 50px; /* offset top/bottom to center items */
+}
+
+.picker-item {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  color: var(--color-text-secondary);
+  transition: color 150ms;
+}
+.picker-item.active {
+  color: var(--color-text-primary);
+}
+
+.typed-input {
+  font-family: var(--font-mono);
+  font-size: clamp(32px, 10vw, 48px);
+  color: var(--color-text-primary);
+  letter-spacing: 2px;
+  margin: var(--spacing-lg) 0;
+}
+.typed-input span {
+  color: var(--color-text-secondary);
+  font-size: 0.6em;
+  margin-right: 8px;
+}
+
+.toggle-input-style {
+  margin-top: var(--spacing-md);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Completion Pulse */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.8;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: none; }
+    50% { opacity: 0.5; transform: none; }
+  }
+}
+
+.time-display.pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
