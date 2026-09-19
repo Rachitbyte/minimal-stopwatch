@@ -168,15 +168,18 @@ export class CountdownInput {
     items.forEach((item, i) => {
       const diff = (i * 50) - scrollTop;
       
-      // Calculate angle for Apple-style 3D cylinder effect
-      const angle = Math.max(-75, Math.min(75, (diff / 50) * 35));
+      // Mathematically perfect cylinder mapping
       const absDiff = Math.abs(diff);
+      const R = 110; // Cylinder radius
+      const thetaDeg = (diff / 50) * 22; // 22 degrees per item
+      const thetaRad = thetaDeg * (Math.PI / 180);
       
-      // Scale down items that are further away to exaggerate depth
-      const scale = Math.max(0.7, 1 - (absDiff / 300));
-      const translateZ = absDiff * -0.2; // Push back slightly
+      const expectedY = R * Math.sin(thetaRad);
+      const translateY = expectedY - diff;
       
-      item.style.transform = `perspective(250px) rotateX(${angle}deg) translateZ(${translateZ}px) scale(${scale})`;
+      const scale = 1 - Math.abs(diff) / 800; // Subtle shrink
+      
+      item.style.transform = `translateY(${translateY}px) scale(${scale}) rotateX(${thetaDeg}deg)`;
       
       // Highlight the center item
       if (absDiff < 25) {
