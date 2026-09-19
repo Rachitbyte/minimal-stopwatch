@@ -13,7 +13,9 @@ app.innerHTML = `
     <button data-mode="countdown">Countdown</button>
     <button data-mode="clock">Clock</button>
   </header>
-  <main class="time-container"></main>
+  <main class="time-container">
+    <div class="clock-date" style="display: none;"></div>
+  </main>
   <footer class="controls">
     <button id="btn-reset" class="secondary" style="display: none;">Reset</button>
     <button id="btn-start" class="primary">Start</button>
@@ -21,6 +23,7 @@ app.innerHTML = `
 `;
 
 const timeContainer = app.querySelector('.time-container') as HTMLElement;
+const clockDate = app.querySelector('.clock-date') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnReset = document.getElementById('btn-reset') as HTMLButtonElement;
 const controls = app.querySelector('.controls') as HTMLElement;
@@ -91,6 +94,7 @@ function renderUI() {
 
   if (state.mode === 'stopwatch') {
     controls.style.visibility = 'visible';
+    clockDate.style.display = 'none';
     timeDisplay.el.style.display = 'flex';
     countdownInput.hide();
     
@@ -103,6 +107,7 @@ function renderUI() {
     }
   } else if (state.mode === 'countdown') {
     controls.style.visibility = 'visible';
+    clockDate.style.display = 'none';
     if (state.countdown.status === 'idle') {
       timeDisplay.el.style.display = 'none';
       countdownInput.show();
@@ -126,6 +131,7 @@ function renderUI() {
     }
   } else if (state.mode === 'clock') {
     controls.style.visibility = 'hidden';
+    clockDate.style.display = 'block';
     timeDisplay.el.style.display = 'flex';
     countdownInput.hide();
     timeDisplay.el.classList.remove('pulse');
@@ -182,7 +188,15 @@ function updateTimeDisplay() {
     }
   } else if (state.mode === 'clock') {
     timeDisplay.setIdle(false);
-    timeDisplay.updateTime(getLocalTimeMs(Date.now()));
+    const now = Date.now();
+    timeDisplay.updateTime(getLocalTimeMs(now));
+    
+    const d = new Date(now);
+    const dateStr = d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    if (clockDate.textContent !== dateStr) {
+      clockDate.textContent = dateStr;
+    }
+    
     document.title = 'Tempo';
   }
 }

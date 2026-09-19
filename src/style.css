@@ -123,6 +123,17 @@ body {
   margin: 0 0.2em 0 0.05em;
 }
 
+.clock-date {
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+  font-size: 1.2rem;
+  margin-top: 1.5rem;
+  text-align: center;
+  opacity: 0.7;
+  letter-spacing: -0.02em;
+  animation: fadeIn 0.3s ease;
+}
+
 .centis {
   font-size: 0.6em;
   opacity: 0.8;
