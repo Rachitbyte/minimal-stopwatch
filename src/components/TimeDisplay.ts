@@ -81,7 +81,7 @@ export class TimeDisplay {
     return el;
   }
 
-  public setDisplayMode(mode: string) {
+  public setDisplayMode() {
     // Apply h/m/s labels to all modes
     this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
     this.labelM.className = 'time-label'; this.labelM.innerHTML = 'm';
