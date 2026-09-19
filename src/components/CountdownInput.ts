@@ -29,6 +29,10 @@ export class CountdownInput {
     this.pickerContainer = document.createElement('div');
     this.pickerContainer.className = 'picker-container';
     
+    const selectionFrame = document.createElement('div');
+    selectionFrame.className = 'picker-selection-frame';
+    this.pickerContainer.appendChild(selectionFrame);
+    
     this.pickerWrapper.appendChild(pickerLabels);
     this.pickerWrapper.appendChild(this.pickerContainer);
     
