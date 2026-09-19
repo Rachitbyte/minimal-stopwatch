@@ -82,15 +82,10 @@ export class TimeDisplay {
   }
 
   public setDisplayMode(mode: string) {
-    if (mode === 'stopwatch' || mode === 'countdown') {
-      this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
-      this.labelM.className = 'time-label'; this.labelM.innerHTML = 'm';
-      this.labelS.className = 'time-label'; this.labelS.innerHTML = 's';
-    } else {
-      this.labelH.className = 'colon'; this.labelH.textContent = ':';
-      this.labelM.className = 'colon'; this.labelM.textContent = ':';
-      this.labelS.className = 'colon'; this.labelS.textContent = '';
-    }
+    // Apply h/m/s labels to all modes
+    this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
+    this.labelM.className = 'time-label'; this.labelM.innerHTML = 'm';
+    this.labelS.className = 'time-label'; this.labelS.innerHTML = 's';
   }
 
   public setIdle(idle: boolean) {
