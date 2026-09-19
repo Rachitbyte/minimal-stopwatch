@@ -87,6 +87,7 @@ function renderUI() {
   updateWakeLock();
   // Update Segmented Control
   modeButtons.forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-mode') === state.mode));
+  timeDisplay.setDisplayMode(state.mode);
 
   if (state.mode === 'stopwatch') {
     controls.style.visibility = 'visible';

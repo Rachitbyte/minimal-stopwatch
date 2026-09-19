@@ -5,6 +5,9 @@ export class TimeDisplay {
   private strips: Record<string, { el: HTMLElement, currentIdx: number, val: string }> = {};
   private centisEl: HTMLElement;
   private lastTimeStr = '';
+  private labelH: HTMLElement;
+  private labelM: HTMLElement;
+  private labelS: HTMLElement;
 
   constructor(container: HTMLElement) {
     this.el = document.createElement('div');
@@ -12,10 +15,11 @@ export class TimeDisplay {
     
     // HH:MM:SS
     this.createDigitGroup('h', 2);
-    this.createColon();
+    this.labelH = this.createLabel();
     this.createDigitGroup('m', 2);
-    this.createColon();
+    this.labelM = this.createLabel();
     this.createDigitGroup('s', 2);
+    this.labelS = this.createLabel();
     
     // Centiseconds
     this.centisEl = document.createElement('div');
@@ -71,11 +75,22 @@ export class TimeDisplay {
     this.el.appendChild(group);
   }
 
-  private createColon() {
-    const colon = document.createElement('span');
-    colon.className = 'colon';
-    colon.textContent = ':';
-    this.el.appendChild(colon);
+  private createLabel() {
+    const el = document.createElement('span');
+    this.el.appendChild(el);
+    return el;
+  }
+
+  public setDisplayMode(mode: string) {
+    if (mode === 'stopwatch' || mode === 'countdown') {
+      this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
+      this.labelM.className = 'time-label'; this.labelM.innerHTML = 'm';
+      this.labelS.className = 'time-label'; this.labelS.innerHTML = 's';
+    } else {
+      this.labelH.className = 'colon'; this.labelH.textContent = ':';
+      this.labelM.className = 'colon'; this.labelM.textContent = ':';
+      this.labelS.className = 'colon'; this.labelS.textContent = '';
+    }
   }
 
   public setIdle(idle: boolean) {
