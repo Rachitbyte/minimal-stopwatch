@@ -102,12 +102,24 @@ export class CountdownInput {
       col.innerHTML += '<div class="picker-spacer"></div>';
       
       let scrollTimeout: any;
+      let ticking = false;
       col.addEventListener('scroll', () => {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            this.apply3DEffect(col);
+            ticking = false;
+          });
+          ticking = true;
+        }
+        
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
           this.calculatePickerDuration();
         }, 100);
       });
+      
+      // Apply initial 3D effect
+      setTimeout(() => this.apply3DEffect(col), 0);
       return col;
     };
 
@@ -141,11 +153,38 @@ export class CountdownInput {
       const col = this.pickerContainer.querySelector(`.${type}-col`) as HTMLElement;
       if (col) {
         col.scrollTop = val * 50;
+        this.apply3DEffect(col);
       }
     };
     setVal('h', h);
     setVal('m', m);
     setVal('s', s);
+  }
+
+  private apply3DEffect(col: HTMLElement) {
+    const scrollTop = col.scrollTop;
+    const items = col.querySelectorAll('.picker-item') as NodeListOf<HTMLElement>;
+    
+    items.forEach((item, i) => {
+      const diff = (i * 50) - scrollTop;
+      
+      // Calculate angle for Apple-style 3D cylinder effect
+      const angle = Math.max(-75, Math.min(75, (diff / 50) * 35));
+      const absDiff = Math.abs(diff);
+      
+      // Scale down items that are further away to exaggerate depth
+      const scale = Math.max(0.7, 1 - (absDiff / 300));
+      const translateZ = absDiff * -0.2; // Push back slightly
+      
+      item.style.transform = `perspective(250px) rotateX(${angle}deg) translateZ(${translateZ}px) scale(${scale})`;
+      
+      // Highlight the center item
+      if (absDiff < 25) {
+        item.style.color = 'var(--color-text-primary)';
+      } else {
+        item.style.color = 'var(--color-text-secondary)';
+      }
+    });
   }
 
   private syncTypedToDuration() {
