@@ -102,7 +102,7 @@ function renderUI() {
     if (state.stopwatch.status === 'running') {
       btnStart.textContent = 'Pause'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
     } else if (state.stopwatch.status === 'paused') {
-      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
+      btnStart.textContent = 'Resume'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
     } else { // idle
       btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none';
     }
@@ -117,12 +117,12 @@ function renderUI() {
     } else if (state.countdown.status === 'running') {
       timeDisplay.el.style.display = 'flex';
       countdownInput.hide();
-      btnStart.textContent = 'Pause'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
+      btnStart.textContent = 'Pause Countdown'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'paused') {
       timeDisplay.el.style.display = 'flex';
       countdownInput.hide();
-      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
+      btnStart.textContent = 'Resume Countdown'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'done') {
       timeDisplay.el.style.display = 'flex';
@@ -163,7 +163,13 @@ function updateTimeDisplay() {
       timeDisplay.setIdle(false);
       const elapsed = getStopwatchElapsed(state.stopwatch.accumulatedMs, state.stopwatch.startedAtEpoch, Date.now());
       timeDisplay.updateTime(elapsed);
-      document.title = state.stopwatch.status === 'running' ? formatTitle(elapsed) : 'Tempo';
+      if (state.stopwatch.status === 'running') {
+        document.title = formatTitle(elapsed);
+      } else if (state.stopwatch.status === 'paused') {
+        document.title = `Paused - ${formatTitle(elapsed)}`;
+      } else {
+        document.title = 'Tempo';
+      }
     }
   } else if (state.mode === 'countdown') {
     if (state.countdown.status === 'idle') {
@@ -176,7 +182,13 @@ function updateTimeDisplay() {
       timeDisplay.setIdle(false);
       const remaining = getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, Date.now());
       timeDisplay.updateTime(remaining);
-      document.title = state.countdown.status === 'running' ? formatTitle(remaining) : 'Tempo';
+      if (state.countdown.status === 'running') {
+        document.title = formatTitle(remaining);
+      } else if (state.countdown.status === 'paused') {
+        document.title = `Paused - ${formatTitle(remaining)}`;
+      } else {
+        document.title = 'Tempo';
+      }
       
       if (remaining === 0 && state.countdown.status === 'running') {
         state.countdown.status = 'done';
