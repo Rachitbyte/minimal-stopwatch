@@ -1,6 +1,7 @@
 export class CountdownInput {
   private el: HTMLElement;
   private currentStyle: 'picker' | 'typed';
+  private pickerWrapper: HTMLElement;
   private pickerContainer: HTMLElement;
   private typedContainer: HTMLElement;
   private toggleBtn: HTMLElement;
@@ -18,8 +19,18 @@ export class CountdownInput {
     this.el = document.createElement('div');
     this.el.className = 'countdown-input-container';
     
+    this.pickerWrapper = document.createElement('div');
+    this.pickerWrapper.className = 'picker-wrapper';
+    
+    const pickerLabels = document.createElement('div');
+    pickerLabels.className = 'picker-labels';
+    pickerLabels.innerHTML = `<div>hr</div><div>min</div><div>sec</div>`;
+    
     this.pickerContainer = document.createElement('div');
     this.pickerContainer.className = 'picker-container';
+    
+    this.pickerWrapper.appendChild(pickerLabels);
+    this.pickerWrapper.appendChild(this.pickerContainer);
     
     this.typedContainer = document.createElement('div');
     this.typedContainer.className = 'typed-input';
@@ -28,7 +39,7 @@ export class CountdownInput {
     this.toggleBtn.className = 'toggle-input-style';
     this.toggleBtn.textContent = 'Switch to ' + (initialStyle === 'picker' ? 'Keyboard' : 'Scroll');
     
-    this.el.appendChild(this.pickerContainer);
+    this.el.appendChild(this.pickerWrapper);
     this.el.appendChild(this.typedContainer);
     this.el.appendChild(this.toggleBtn);
     
@@ -69,7 +80,7 @@ export class CountdownInput {
   }
 
   private updateVisibility() {
-    this.pickerContainer.style.display = this.currentStyle === 'picker' ? 'flex' : 'none';
+    this.pickerWrapper.style.display = this.currentStyle === 'picker' ? 'flex' : 'none';
     this.typedContainer.style.display = this.currentStyle === 'typed' ? 'block' : 'none';
   }
 

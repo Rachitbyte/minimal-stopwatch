@@ -217,6 +217,27 @@ button.secondary {
   align-items: center;
 }
 
+.picker-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.picker-labels {
+  display: flex;
+  width: 100%;
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.picker-labels div {
+  flex: 1;
+}
+
 .picker-container {
   display: flex;
   width: 100%;
