@@ -77,6 +77,10 @@ export class CountdownInput {
 
   public show() {
     this.el.style.display = 'flex';
+    // Force sync when becoming visible to override browser scroll restoration
+    if (this.currentStyle === 'picker') {
+      this.syncPickerToDuration();
+    }
   }
 
   public hide() {
@@ -179,7 +183,7 @@ export class CountdownInput {
       const expectedY = R * Math.sin(thetaRad);
       const translateY = expectedY - diff;
       
-      const scale = 1 - absDiff / 800; // Subtle shrink
+      const scale = Math.max(0.2, 1 - absDiff / 800); // Subtle shrink, prevent negative scale
       
       // Fade out items as they wrap around the cylinder
       const opacity = Math.max(0, 1 - (absDiff / 170));
