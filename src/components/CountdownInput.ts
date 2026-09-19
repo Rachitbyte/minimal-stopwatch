@@ -171,15 +171,22 @@ export class CountdownInput {
       // Mathematically perfect cylinder mapping
       const absDiff = Math.abs(diff);
       const R = 110; // Cylinder radius
-      const thetaDeg = (diff / 50) * 22; // 22 degrees per item
+      
+      // Clamp angle to prevent wrapping around the cylinder completely
+      const thetaDeg = Math.max(-85, Math.min(85, (diff / 50) * 20));
       const thetaRad = thetaDeg * (Math.PI / 180);
       
       const expectedY = R * Math.sin(thetaRad);
       const translateY = expectedY - diff;
       
-      const scale = 1 - Math.abs(diff) / 800; // Subtle shrink
+      const scale = 1 - absDiff / 800; // Subtle shrink
+      
+      // Fade out items as they wrap around the cylinder
+      const opacity = Math.max(0, 1 - (absDiff / 170));
       
       item.style.transform = `translateY(${translateY}px) scale(${scale}) rotateX(${thetaDeg}deg)`;
+      item.style.opacity = opacity.toString();
+      item.style.visibility = opacity === 0 ? 'hidden' : 'visible';
       
       // Highlight the center item
       if (absDiff < 25) {
