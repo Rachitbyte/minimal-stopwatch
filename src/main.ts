@@ -31,14 +31,10 @@ const modeButtons = app.querySelectorAll('.mode-switcher button');
 
 const state = loadState();
 const timeDisplay = new TimeDisplay(timeContainer);
-let countdownInput = new CountdownInput(timeContainer, state.countdownInputStyle, state.countdown.durationMs);
+let countdownInput = new CountdownInput(timeContainer, state.countdown.durationMs);
 
 countdownInput.onDurationChange = (ms) => {
   state.countdown.durationMs = ms;
-  saveState(state);
-};
-countdownInput.onStyleChange = (style) => {
-  state.countdownInputStyle = style;
   saveState(state);
 };
 

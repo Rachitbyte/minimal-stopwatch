@@ -288,26 +288,6 @@ button.secondary {
   color: var(--color-text-primary);
 }
 
-.typed-input {
-  font-family: var(--font-mono);
-  font-size: clamp(32px, 10vw, 48px);
-  color: var(--color-text-primary);
-  letter-spacing: 2px;
-  margin: var(--spacing-lg) 0;
-}
-.typed-input span {
-  color: var(--color-text-secondary);
-  font-size: 0.6em;
-  margin-right: 8px;
-}
-
-.toggle-input-style {
-  margin-top: var(--spacing-md);
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  text-decoration: underline;
-  cursor: pointer;
-}
 
 /* Completion Pulse */
 @keyframes pulse {
