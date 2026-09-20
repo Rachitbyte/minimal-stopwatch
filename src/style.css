@@ -465,8 +465,8 @@ body.is-fullscreen .mode-switcher {
 }
 
 body.is-fullscreen .countdown-clock {
-  /* In fullscreen, allow the clock to grow much larger up to 750px or 85vh, whatever fits */
-  max-width: min(85vw, 85dvh, 750px);
+  /* In fullscreen, allow the clock to grow up to 750px, but always reserve 120px height for controls */
+  max-width: min(85vw, calc(100dvh - 120px), 750px);
 }
 
 body.is-fullscreen .controls {
