@@ -92,9 +92,10 @@ export class TimeDisplay {
       this.labelS.style.display = 'none';
       if (sGroup) sGroup.style.display = 'none';
     } else {
-      this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
-      this.labelM.style.display = 'inline'; this.labelM.innerHTML = 'm';
-      this.labelS.style.display = 'inline'; this.labelS.innerHTML = 's';
+      this.labelH.className = 'time-label clock-colon'; this.labelH.innerHTML = ':';
+      this.labelM.className = 'time-label clock-colon'; this.labelM.innerHTML = ':';
+      this.labelM.style.display = 'inline-block';
+      this.labelS.style.display = 'none';
       if (sGroup) sGroup.style.display = 'flex';
     }
   }
