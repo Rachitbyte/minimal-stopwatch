@@ -8,6 +8,7 @@ export class TimeDisplay {
   private labelH: HTMLElement;
   private labelM: HTMLElement;
   private labelS: HTMLElement;
+  private currentMode: 'stopwatch' | 'countdown' | 'clock' = 'stopwatch';
 
   constructor(container: HTMLElement) {
     this.el = document.createElement('div');
@@ -81,11 +82,21 @@ export class TimeDisplay {
     return el;
   }
 
-  public setDisplayMode() {
-    // Apply h/m/s labels to all modes
-    this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
-    this.labelM.className = 'time-label'; this.labelM.innerHTML = 'm';
-    this.labelS.className = 'time-label'; this.labelS.innerHTML = 's';
+  public setDisplayMode(mode: 'stopwatch' | 'countdown' | 'clock') {
+    this.currentMode = mode;
+    const sGroup = this.el.querySelector('.digit-group.s') as HTMLElement;
+    
+    if (mode === 'clock') {
+      this.labelH.className = 'time-label clock-dot'; this.labelH.innerHTML = '.';
+      this.labelM.style.display = 'none';
+      this.labelS.style.display = 'none';
+      if (sGroup) sGroup.style.display = 'none';
+    } else {
+      this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
+      this.labelM.style.display = 'inline'; this.labelM.innerHTML = 'm';
+      this.labelS.style.display = 'inline'; this.labelS.innerHTML = 's';
+      if (sGroup) sGroup.style.display = 'flex';
+    }
   }
 
   public setIdle(idle: boolean) {
@@ -98,7 +109,13 @@ export class TimeDisplay {
     const totalSec = Math.floor(ms / 1000);
     const sec = totalSec % 60;
     const min = Math.floor(totalSec / 60) % 60;
-    const hr = Math.floor(totalSec / 3600);
+    let hr = Math.floor(totalSec / 3600);
+    
+    let ampm = '';
+    if (this.currentMode === 'clock') {
+      ampm = hr >= 12 ? 'p.m.' : 'a.m.';
+      hr = hr % 12 || 12;
+    }
 
     const hrStr = Math.min(hr, 99).toString().padStart(2, '0');
     const minStr = min.toString().padStart(2, '0');
@@ -115,7 +132,11 @@ export class TimeDisplay {
       this.lastTimeStr = fullStr;
     }
 
-    this.centisEl.textContent = `.${centi.toString().padStart(2, '0')}`;
+    if (this.currentMode === 'clock') {
+      this.centisEl.textContent = ` ${ampm}`;
+    } else {
+      this.centisEl.textContent = `.${centi.toString().padStart(2, '0')}`;
+    }
   }
   
   public resetInstant() {
