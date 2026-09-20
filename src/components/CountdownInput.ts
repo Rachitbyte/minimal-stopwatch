@@ -58,15 +58,15 @@ export class CountdownInput {
       col.className = `picker-column ${type}-col`;
       col.innerHTML = '<div class="picker-spacer"></div>';
       
-      // Ghost items above
-      for (let i = max - 2; i <= max; i++) {
+      // Ghost items above (full set)
+      for (let i = 0; i <= max; i++) {
         const item = document.createElement('div');
         item.className = 'picker-item ghost';
         item.textContent = i.toString().padStart(2, '0');
         col.appendChild(item);
       }
 
-      // Real items
+      // Real items (full set)
       for (let i = 0; i <= max; i++) {
         const item = document.createElement('div');
         item.className = 'picker-item';
@@ -74,8 +74,8 @@ export class CountdownInput {
         col.appendChild(item);
       }
       
-      // Ghost items below
-      for (let i = 0; i <= 2; i++) {
+      // Ghost items below (full set)
+      for (let i = 0; i <= max; i++) {
         const item = document.createElement('div');
         item.className = 'picker-item ghost';
         item.textContent = i.toString().padStart(2, '0');
@@ -101,9 +101,9 @@ export class CountdownInput {
           
           // Infinite scroll wrap-around jump
           const idx = Math.round(col.scrollTop / 50);
-          if (idx < 3) {
+          if (idx < max + 1) { // Scrolled into the top ghost block
             col.scrollTop = (idx + max + 1) * 50;
-          } else if (idx > 3 + max) {
+          } else if (idx >= (max + 1) * 2) { // Scrolled into the bottom ghost block
             col.scrollTop = (idx - max - 1) * 50;
           }
         }, 150);
@@ -124,9 +124,7 @@ export class CountdownInput {
       const col = this.pickerContainer.querySelector(`.${type}-col`) as HTMLElement;
       if (!col) return 0;
       const idx = Math.round(col.scrollTop / 50);
-      if (idx < 3) return max - (2 - idx);
-      if (idx > 3 + max) return idx - (3 + max) - 1;
-      return idx - 3;
+      return idx % (max + 1);
     };
     const h = getVal('h', 99);
     const m = getVal('m', 59);
@@ -145,7 +143,9 @@ export class CountdownInput {
     const setVal = (type: string, val: number) => {
       const col = this.pickerContainer.querySelector(`.${type}-col`) as HTMLElement;
       if (col) {
-        col.scrollTop = (val + 3) * 50;
+        // Sync to the middle block of numbers
+        let max = type === 'h' ? 99 : 59;
+        col.scrollTop = (val + max + 1) * 50;
         this.apply3DEffect(col);
       }
     };
