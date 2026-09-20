@@ -58,28 +58,17 @@ export class CountdownInput {
       col.className = `picker-column ${type}-col`;
       col.innerHTML = '<div class="picker-spacer"></div>';
       
-      // Ghost items above (full set)
-      for (let i = 0; i <= max; i++) {
-        const item = document.createElement('div');
-        item.className = 'picker-item ghost';
-        item.textContent = i.toString().padStart(2, '0');
-        col.appendChild(item);
-      }
-
-      // Real items (full set)
-      for (let i = 0; i <= max; i++) {
-        const item = document.createElement('div');
-        item.className = 'picker-item';
-        item.textContent = i.toString().padStart(2, '0');
-        col.appendChild(item);
-      }
+      const CYCLES = 11;
+      const CENTER_CYCLE = 5;
       
-      // Ghost items below (full set)
-      for (let i = 0; i <= max; i++) {
-        const item = document.createElement('div');
-        item.className = 'picker-item ghost';
-        item.textContent = i.toString().padStart(2, '0');
-        col.appendChild(item);
+      for (let c = 0; c < CYCLES; c++) {
+        for (let i = 0; i <= max; i++) {
+          const item = document.createElement('div');
+          item.className = 'picker-item';
+          if (c !== CENTER_CYCLE) item.classList.add('ghost');
+          item.textContent = i.toString().padStart(2, '0');
+          col.appendChild(item);
+        }
       }
       
       col.innerHTML += '<div class="picker-spacer"></div>';
@@ -99,12 +88,13 @@ export class CountdownInput {
         scrollTimeout = setTimeout(() => {
           this.calculatePickerDuration();
           
-          // Infinite scroll wrap-around jump
+          // Infinite scroll wrap-around jump with large buffer
           const idx = Math.round(col.scrollTop / 50);
-          if (idx < max + 1) { // Scrolled into the top ghost block
-            col.scrollTop = (idx + max + 1) * 50;
-          } else if (idx >= (max + 1) * 2) { // Scrolled into the bottom ghost block
-            col.scrollTop = (idx - max - 1) * 50;
+          const cycle = Math.floor(idx / (max + 1));
+          
+          if (cycle <= 2 || cycle >= 8) {
+            const offsetInCycle = idx % (max + 1);
+            col.scrollTop = (offsetInCycle + 5 * (max + 1)) * 50; // Jump to center cycle (5)
           }
         }, 150);
       });
@@ -143,9 +133,9 @@ export class CountdownInput {
     const setVal = (type: string, val: number) => {
       const col = this.pickerContainer.querySelector(`.${type}-col`) as HTMLElement;
       if (col) {
-        // Sync to the middle block of numbers
+        // Sync to the center cycle
         let max = type === 'h' ? 99 : 59;
-        col.scrollTop = (val + max + 1) * 50;
+        col.scrollTop = (val + 5 * (max + 1)) * 50;
         this.apply3DEffect(col);
       }
     };
