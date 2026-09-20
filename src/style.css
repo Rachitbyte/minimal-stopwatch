@@ -427,25 +427,25 @@ button.secondary {
 /* Fullscreen Button */
 .fullscreen-btn {
   position: fixed;
-  bottom: var(--spacing-lg);
-  right: var(--spacing-lg);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: var(--color-surface);
-  color: var(--color-text-secondary);
+  bottom: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  transition: opacity 150ms, transform 150ms, color 150ms;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  transition: opacity 150ms, transform 150ms, color 150ms, background-color 150ms;
 }
 
 .fullscreen-btn:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-surface-raised);
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .fullscreen-btn:active {
@@ -475,5 +475,6 @@ body.is-fullscreen .controls {
   bottom: 0;
   left: 0;
   width: 100%;
-  padding-bottom: 24px;
+  max-width: 100%; /* Override the normal 400px max-width to allow full-width centering */
+  padding-bottom: 32px;
 }
