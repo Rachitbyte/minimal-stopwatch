@@ -423,3 +423,57 @@ button.secondary {
   text-transform: uppercase;
   margin-left: 3px; /* visual balance for letter-spacing */
 }
+
+/* Fullscreen Button */
+.fullscreen-btn {
+  position: fixed;
+  bottom: var(--spacing-lg);
+  right: var(--spacing-lg);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: opacity 150ms, transform 150ms, color 150ms;
+}
+
+.fullscreen-btn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-raised);
+}
+
+.fullscreen-btn:active {
+  transform: scale(0.9);
+}
+
+/* Fullscreen State Overrides */
+body.is-fullscreen #app {
+  /* Ensure the background stays totally dark */
+  background-color: #000;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 80px env(safe-area-inset-left); /* Ensure room for pause button at bottom */
+}
+
+body.is-fullscreen .mode-switcher {
+  /* Hide navigation in fullscreen to match the requested minimalist layout */
+  display: none;
+}
+
+body.is-fullscreen .countdown-clock {
+  /* In fullscreen, allow the clock to grow much larger up to 750px or 85vh, whatever fits */
+  max-width: min(85vw, 85dvh, 750px);
+}
+
+body.is-fullscreen .controls {
+  /* Center controls under the clock in fullscreen */
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding-bottom: 24px;
+}
