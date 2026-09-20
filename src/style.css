@@ -230,19 +230,30 @@ button.secondary {
   width: 100%;
 }
 
-.picker-labels {
-  display: flex;
+.picker-units-overlay {
+  position: absolute;
+  top: 100px;
+  left: 0;
   width: 100%;
-  font-family: var(--font-sans);
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  text-align: center;
-  margin-bottom: 8px;
-  opacity: 0.8;
+  height: 50px;
+  display: flex;
+  pointer-events: none;
+  z-index: 2;
 }
 
-.picker-labels div {
+.picker-units-overlay div {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.picker-units-overlay span {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  transform: translateX(25px);
 }
 
 .picker-container {

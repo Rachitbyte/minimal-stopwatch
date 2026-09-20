@@ -16,9 +16,6 @@ export class CountdownInput {
     this.pickerWrapper = document.createElement('div');
     this.pickerWrapper.className = 'picker-wrapper';
     
-    const pickerLabels = document.createElement('div');
-    pickerLabels.className = 'picker-labels';
-    pickerLabels.innerHTML = `<div>hr</div><div>min</div><div>sec</div>`;
     
     this.pickerContainer = document.createElement('div');
     this.pickerContainer.className = 'picker-container';
@@ -27,8 +24,11 @@ export class CountdownInput {
     selectionFrame.className = 'picker-selection-frame';
     this.pickerContainer.appendChild(selectionFrame);
     
-    this.pickerWrapper.appendChild(pickerLabels);
     this.pickerWrapper.appendChild(this.pickerContainer);
+    const unitsOverlay = document.createElement('div');
+    unitsOverlay.className = 'picker-units-overlay';
+    unitsOverlay.innerHTML = `<div><span>H</span></div><div><span>M</span></div><div><span>S</span></div>`;
+    this.pickerContainer.appendChild(unitsOverlay);
     
     this.el.appendChild(this.pickerWrapper);
     
