@@ -258,7 +258,7 @@ button.secondary {
   font-size: calc(24px * 0.76);
   color: var(--color-text-secondary);
   font-weight: 500;
-  transform: translateX(42px);
+  transform: translateX(35px);
 }
 
 .picker-container {
