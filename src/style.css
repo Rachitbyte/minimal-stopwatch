@@ -255,10 +255,10 @@ button.secondary {
 
 .picker-units-overlay span {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: calc(24px * 0.95);
   color: var(--color-text-secondary);
-  font-weight: 600;
-  transform: translateX(25px);
+  font-weight: 500;
+  transform: translateX(42px);
 }
 
 .picker-container {
