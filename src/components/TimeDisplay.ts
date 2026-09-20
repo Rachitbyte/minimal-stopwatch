@@ -88,9 +88,10 @@ export class TimeDisplay {
     
     if (mode === 'clock') {
       this.labelH.className = 'time-label clock-dot'; this.labelH.innerHTML = '.';
-      this.labelM.style.display = 'none';
+      this.labelM.className = 'time-label clock-dot'; this.labelM.innerHTML = '.';
+      this.labelM.style.display = 'inline';
       this.labelS.style.display = 'none';
-      if (sGroup) sGroup.style.display = 'none';
+      if (sGroup) sGroup.style.display = 'flex';
     } else {
       this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
       this.labelM.style.display = 'inline'; this.labelM.innerHTML = 'm';
