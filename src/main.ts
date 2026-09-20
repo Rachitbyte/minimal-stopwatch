@@ -5,6 +5,7 @@ import { getStopwatchElapsed, getCountdownRemaining } from './engine/time';
 import { startLoop, stopLoop, subscribeToLoop } from './engine/loop';
 import { TimeDisplay } from './components/TimeDisplay';
 import { CountdownInput } from './components/CountdownInput';
+import { CountdownClock } from './components/CountdownClock';
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -32,6 +33,7 @@ const modeButtons = app.querySelectorAll('.mode-switcher button');
 const state = loadState();
 const timeDisplay = new TimeDisplay(timeContainer);
 let countdownInput = new CountdownInput(timeContainer, state.countdown.durationMs);
+const countdownClock = new CountdownClock(timeContainer);
 
 countdownInput.onDurationChange = (ms) => {
   state.countdown.durationMs = ms;
@@ -96,6 +98,7 @@ function renderUI() {
     timeDisplay.el.style.display = 'flex';
     timeDisplay.el.classList.remove('pulse');
     countdownInput.hide();
+    countdownClock.hide();
     
     if (state.stopwatch.status === 'running') {
       btnStart.textContent = 'Pause'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
@@ -109,30 +112,36 @@ function renderUI() {
     clockDate.style.display = 'none';
     if (state.countdown.status === 'idle') {
       timeDisplay.el.style.display = 'none';
+      countdownClock.hide();
       countdownInput.show();
       btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'running') {
-      timeDisplay.el.style.display = 'flex';
+      timeDisplay.el.style.display = 'none';
       countdownInput.hide();
+      countdownClock.show();
       btnStart.textContent = 'Pause Countdown'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'paused') {
-      timeDisplay.el.style.display = 'flex';
+      timeDisplay.el.style.display = 'none';
       countdownInput.hide();
+      countdownClock.show();
       btnStart.textContent = 'Resume Countdown'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'done') {
-      timeDisplay.el.style.display = 'flex';
+      timeDisplay.el.style.display = 'none';
       countdownInput.hide();
+      countdownClock.show();
       btnStart.textContent = 'Dismiss'; btnStart.className = 'primary'; btnReset.style.display = 'none';
-      timeDisplay.el.classList.add('pulse');
+      timeDisplay.el.classList.add('pulse'); // We'll handle pulsing inside countdownClock for done state
+      countdownClock.setPulse(true);
     }
   } else if (state.mode === 'clock') {
     controls.style.visibility = 'hidden';
     clockDate.style.display = 'block';
     timeDisplay.el.style.display = 'flex';
     countdownInput.hide();
+    countdownClock.hide();
     timeDisplay.el.classList.remove('pulse');
   }
 }
@@ -175,11 +184,13 @@ function updateTimeDisplay() {
     } else if (state.countdown.status === 'done') {
       timeDisplay.setIdle(false);
       timeDisplay.updateTime(0);
+      countdownClock.update(0, state.countdown.durationMs);
       document.title = 'Done - Tempo';
     } else {
       timeDisplay.setIdle(false);
       const remaining = getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, Date.now());
       timeDisplay.updateTime(remaining);
+      countdownClock.update(remaining, state.countdown.durationMs);
       if (state.countdown.status === 'running') {
         document.title = formatTitle(remaining);
       } else if (state.countdown.status === 'paused') {

@@ -334,3 +334,92 @@ button.secondary {
 .time-display.pulse {
   animation: pulse 1.4s ease-in-out infinite;
 }
+
+/* Countdown Clock (Analog UI) */
+.countdown-clock {
+  width: 85vw;
+  max-width: 450px;
+  max-height: 85vh;
+  aspect-ratio: 1/1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  contain: layout paint;
+}
+
+.clock-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.clock-face-bg {
+  fill: #1F1F1F;
+}
+
+.clock-inner-boundary {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.10);
+  stroke-width: 2px;
+}
+
+.clock-progress-base {
+  fill: none;
+  stroke: #262626; /* Subtle dark background for the ring */
+  stroke-width: 12px;
+}
+
+.clock-progress-active {
+  fill: none;
+  stroke: #2F72D6;
+  stroke-width: 12px;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 50ms linear; /* extremely subtle smooth step */
+}
+
+.clock-number {
+  fill: #F2F2F2;
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 300;
+  user-select: none;
+}
+
+.clock-center-display {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.clock-time-text {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: clamp(38px, 8vw, 54px);
+  color: #F2F2F2;
+  line-height: 1.1;
+  margin-bottom: var(--spacing-sm);
+  contain: layout paint;
+}
+
+.clock-time-text.pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.clock-label-text {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: #A0A0A0;
+  text-transform: uppercase;
+  margin-left: 3px; /* visual balance for letter-spacing */
+}
