@@ -136,5 +136,37 @@ export class CountdownClock {
     // SVG stroke-dashoffset: 0 is full, circumference is empty.
     const offset = this.circumference - (progress * this.circumference);
     this.progressRing.style.strokeDashoffset = offset.toString();
+    
+    // Update stroke color dynamically
+    this.progressRing.style.stroke = this.interpolateColor(progress);
+  }
+
+  private interpolateColor(progress: number): string {
+    const stops = [
+      { p: 0.00, r: 239, g: 68,  b: 68  }, // Deep Red (#EF4444)
+      { p: 0.12, r: 249, g: 115, b: 22  }, // Warm Orange (#F97316)
+      { p: 0.25, r: 217, g: 70,  b: 239 }, // Magenta/Pink (#D946EF)
+      { p: 0.40, r: 139, g: 92,  b: 246 }, // Electric Purple (#8B5CF6)
+      { p: 0.55, r: 99,  g: 91,  b: 255 }, // Cool Violet (#635BFF)
+      { p: 0.70, r: 32,  g: 207, b: 255 }, // Electric Cyan (#20CFFF)
+      { p: 0.85, r: 37,  g: 140, b: 255 }, // Bright Azure (#258CFF)
+      { p: 1.00, r: 47,  g: 114, b: 214 }, // Electric Blue (#2F72D6)
+    ];
+
+    if (progress <= 0) return `rgb(${stops[0].r}, ${stops[0].g}, ${stops[0].b})`;
+    if (progress >= 1) return `rgb(${stops[7].r}, ${stops[7].g}, ${stops[7].b})`;
+
+    for (let i = 0; i < stops.length - 1; i++) {
+      const s1 = stops[i];
+      const s2 = stops[i + 1];
+      if (progress >= s1.p && progress <= s2.p) {
+        const t = (progress - s1.p) / (s2.p - s1.p);
+        const r = Math.round(s1.r + (s2.r - s1.r) * t);
+        const g = Math.round(s1.g + (s2.g - s1.g) * t);
+        const b = Math.round(s1.b + (s2.b - s1.b) * t);
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+    }
+    return `rgb(${stops[7].r}, ${stops[7].g}, ${stops[7].b})`;
   }
 }
