@@ -113,7 +113,7 @@ export class TimeDisplay {
     
     let ampm = '';
     if (this.currentMode === 'clock') {
-      ampm = hr >= 12 ? 'p.m.' : 'a.m.';
+      ampm = hr >= 12 ? 'PM' : 'AM';
       hr = hr % 12 || 12;
     }
 
@@ -133,7 +133,7 @@ export class TimeDisplay {
     }
 
     if (this.currentMode === 'clock') {
-      this.centisEl.textContent = `.${secStr} ${ampm}`;
+      this.centisEl.innerHTML = `.${secStr} <span class="ampm-text">${ampm}</span>`;
     } else {
       this.centisEl.textContent = `.${centi.toString().padStart(2, '0')}`;
     }

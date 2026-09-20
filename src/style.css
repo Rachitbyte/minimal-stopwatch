@@ -151,6 +151,11 @@ body {
   margin-left: 0.2em;
 }
 
+.ampm-text {
+  color: #666666;
+  margin-left: 0.1em;
+}
+
 /* Controls */
 .controls {
   padding: var(--spacing-lg);
