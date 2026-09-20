@@ -255,7 +255,7 @@ button.secondary {
 
 .picker-units-overlay span {
   font-family: var(--font-sans);
-  font-size: calc(24px * 0.95);
+  font-size: calc(24px * 0.76);
   color: var(--color-text-secondary);
   font-weight: 500;
   transform: translateX(42px);
