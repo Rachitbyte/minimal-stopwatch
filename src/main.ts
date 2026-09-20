@@ -312,6 +312,8 @@ document.addEventListener('touchend', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  const isCountdownOperating = state.mode === 'countdown' && state.countdown.status !== 'idle';
+
   if (e.key === 'Escape') {
     e.preventDefault();
     btnReset.click();
@@ -323,11 +325,18 @@ document.addEventListener('keydown', (e) => {
         return; // Allow native interaction with other buttons
       }
     }
-    e.preventDefault();
-    btnStart.click();
+    
+    // Only perform spacebar action if countdown is operating
+    if (isCountdownOperating) {
+      e.preventDefault();
+      btnStart.click();
+    }
   } else if (e.key.toLowerCase() === 'r') {
-    e.preventDefault();
-    btnReset.click();
+    // Only perform 'r' reset if countdown is operating
+    if (isCountdownOperating) {
+      e.preventDefault();
+      btnReset.click();
+    }
   }
 });
 
