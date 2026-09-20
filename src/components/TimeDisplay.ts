@@ -87,11 +87,10 @@ export class TimeDisplay {
     const sGroup = this.el.querySelector('.digit-group.s') as HTMLElement;
     
     if (mode === 'clock') {
-      this.labelH.className = 'time-label clock-dot'; this.labelH.innerHTML = '.';
-      this.labelM.className = 'time-label clock-dot'; this.labelM.innerHTML = '.';
-      this.labelM.style.display = 'inline';
+      this.labelH.className = 'time-label clock-colon'; this.labelH.innerHTML = ':';
+      this.labelM.style.display = 'none';
       this.labelS.style.display = 'none';
-      if (sGroup) sGroup.style.display = 'flex';
+      if (sGroup) sGroup.style.display = 'none';
     } else {
       this.labelH.className = 'time-label'; this.labelH.innerHTML = 'h';
       this.labelM.style.display = 'inline'; this.labelM.innerHTML = 'm';
@@ -134,7 +133,7 @@ export class TimeDisplay {
     }
 
     if (this.currentMode === 'clock') {
-      this.centisEl.textContent = ` ${ampm}`;
+      this.centisEl.textContent = `.${secStr} ${ampm}`;
     } else {
       this.centisEl.textContent = `.${centi.toString().padStart(2, '0')}`;
     }
