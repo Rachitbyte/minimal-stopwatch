@@ -473,8 +473,8 @@ body.is-fullscreen .controls {
   /* Center controls under the clock in fullscreen */
   position: absolute;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
-  max-width: 100%; /* Override the normal 400px max-width to allow full-width centering */
   padding-bottom: 32px;
 }
