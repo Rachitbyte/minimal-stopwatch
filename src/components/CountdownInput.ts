@@ -45,11 +45,20 @@ export class CountdownInput {
   public show() {
     this.el.style.display = 'flex';
     // Force sync when becoming visible to override browser scroll restoration
-    this.syncPickerToDuration();
+    requestAnimationFrame(() => {
+      this.syncPickerToDuration();
+    });
   }
 
   public hide() {
     this.el.style.display = 'none';
+  }
+
+  private jumpTo(col: HTMLElement, targetScroll: number) {
+    col.style.scrollSnapType = 'none';
+    col.scrollTop = targetScroll;
+    void col.offsetHeight; // Force browser layout
+    col.style.scrollSnapType = 'y mandatory';
   }
 
   private buildPicker() {
@@ -94,7 +103,7 @@ export class CountdownInput {
           
           if (cycle <= 2 || cycle >= 8) {
             const offsetInCycle = idx % (max + 1);
-            col.scrollTop = (offsetInCycle + 5 * (max + 1)) * 50; // Jump to center cycle (5)
+            this.jumpTo(col, (offsetInCycle + 5 * (max + 1)) * 50); // Jump to center cycle (5)
           }
         }, 150);
       });
@@ -135,7 +144,7 @@ export class CountdownInput {
       if (col) {
         // Sync to the center cycle
         let max = type === 'h' ? 99 : 59;
-        col.scrollTop = (val + 5 * (max + 1)) * 50;
+        this.jumpTo(col, (val + 5 * (max + 1)) * 50);
         this.apply3DEffect(col);
       }
     };
