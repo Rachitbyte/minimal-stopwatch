@@ -298,16 +298,23 @@ button.secondary {
   height: 100px; /* offset top/bottom to center items */
 }
 
-.picker-item {
+.picker-item-wrap {
   height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   scroll-snap-align: center;
+}
+
+.picker-item-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-text-secondary);
   transition: color 150ms;
+  will-change: transform, opacity;
 }
-.picker-item.active {
+.picker-item-inner.active {
   color: var(--color-text-primary);
 }
 

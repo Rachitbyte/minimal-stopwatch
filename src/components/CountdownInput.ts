@@ -74,11 +74,16 @@ export class CountdownInput {
       
       for (let c = 0; c < CYCLES; c++) {
         for (let i = 0; i <= max; i++) {
-          const item = document.createElement('div');
-          item.className = 'picker-item';
-          if (c !== CENTER_CYCLE) item.classList.add('ghost');
-          item.textContent = i.toString().padStart(2, '0');
-          col.appendChild(item);
+          const itemWrap = document.createElement('div');
+          itemWrap.className = 'picker-item-wrap';
+          
+          const itemInner = document.createElement('div');
+          itemInner.className = 'picker-item-inner';
+          if (c !== CENTER_CYCLE) itemInner.classList.add('ghost');
+          itemInner.textContent = i.toString().padStart(2, '0');
+          
+          itemWrap.appendChild(itemInner);
+          col.appendChild(itemWrap);
         }
       }
       
@@ -157,9 +162,12 @@ export class CountdownInput {
 
   private apply3DEffect(col: HTMLElement) {
     const scrollTop = col.scrollTop;
-    const items = col.querySelectorAll('.picker-item') as NodeListOf<HTMLElement>;
+    const itemWraps = col.querySelectorAll('.picker-item-wrap') as NodeListOf<HTMLElement>;
     
-    items.forEach((item, i) => {
+    itemWraps.forEach((itemWrap, i) => {
+      const itemInner = itemWrap.firstElementChild as HTMLElement;
+      if (!itemInner) return;
+      
       const diff = (i * 50) - scrollTop;
       
       // Mathematically perfect cylinder mapping
@@ -178,15 +186,15 @@ export class CountdownInput {
       // Fade out items as they wrap around the cylinder
       const opacity = Math.max(0, 1 - (absDiff / 170));
       
-      item.style.transform = `translateY(${translateY}px) scale(${scale}) rotateX(${thetaDeg}deg)`;
-      item.style.opacity = opacity.toString();
-      item.style.visibility = opacity === 0 ? 'hidden' : 'visible';
+      itemInner.style.transform = `translateY(${translateY}px) scale(${scale}) rotateX(${thetaDeg}deg)`;
+      itemInner.style.opacity = opacity.toString();
+      itemInner.style.visibility = opacity === 0 ? 'hidden' : 'visible';
       
       // Highlight the center item
       if (absDiff < 25) {
-        item.style.color = 'var(--color-text-primary)';
+        itemInner.style.color = 'var(--color-text-primary)';
       } else {
-        item.style.color = 'var(--color-text-secondary)';
+        itemInner.style.color = 'var(--color-text-secondary)';
       }
     });
   }
