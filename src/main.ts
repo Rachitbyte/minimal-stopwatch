@@ -322,6 +322,8 @@ document.addEventListener('touchend', (e) => {
 
 document.addEventListener('keydown', (e) => {
   const isCountdownOperating = state.mode === 'countdown' && state.countdown.status !== 'idle';
+  const isStopwatch = state.mode === 'stopwatch';
+  const allowShortcuts = isCountdownOperating || isStopwatch;
 
   if (e.key === 'Escape') {
     if (document.fullscreenElement) {
@@ -339,14 +341,14 @@ document.addEventListener('keydown', (e) => {
       }
     }
     
-    // Only perform spacebar action if countdown is operating
-    if (isCountdownOperating) {
+    // Perform spacebar action (Start/Pause/Resume)
+    if (allowShortcuts) {
       e.preventDefault();
       btnStart.click();
     }
   } else if (e.key.toLowerCase() === 'r') {
-    // Only perform 'r' reset if countdown is operating
-    if (isCountdownOperating) {
+    // Perform 'r' reset action
+    if (allowShortcuts) {
       e.preventDefault();
       btnReset.click();
     }
