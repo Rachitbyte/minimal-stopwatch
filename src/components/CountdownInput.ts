@@ -44,10 +44,8 @@ export class CountdownInput {
 
   public show() {
     this.el.style.display = 'flex';
-    // Force sync when becoming visible to override browser scroll restoration
-    requestAnimationFrame(() => {
-      this.syncPickerToDuration();
-    });
+    // Synchronously force layout and set scroll to avoid any initial paint at 0 and subsequent smooth-scroll animations
+    this.syncPickerToDuration();
   }
 
   public hide() {
@@ -56,8 +54,12 @@ export class CountdownInput {
 
   private jumpTo(col: HTMLElement, targetScroll: number) {
     col.style.scrollSnapType = 'none';
+    col.style.overflowY = 'hidden'; // Kills any mobile smooth-scroll physics instantly
+    
     col.scrollTop = targetScroll;
-    void col.offsetHeight; // Force browser layout
+    void col.offsetHeight; // Force synchronous browser layout
+    
+    col.style.overflowY = 'scroll';
     col.style.scrollSnapType = 'y mandatory';
   }
 
