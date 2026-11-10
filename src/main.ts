@@ -5,10 +5,12 @@ import { getStopwatchElapsed, getCountdownRemaining } from './engine/time';
 import { getTabTitle } from './engine/title';
 import { startLoop, stopLoop, subscribeToLoop } from './engine/loop';
 import { startBackgroundTicker, stopBackgroundTicker, subscribeToBackgroundTick } from './engine/backgroundTicker';
+import { registerNotificationServiceWorker, requestCountdownNotificationPermission, notifyCountdownDone } from './engine/notifications';
 import { TimeDisplay } from './components/TimeDisplay';
 import { CountdownInput } from './components/CountdownInput';
 import { CountdownClock } from './components/CountdownClock';
-import { FloatingTimer } from './components/FloatingTimer';
+import { FloatingTimer, isDocumentPiPSupported, type FloatingTimerSnapshot } from './components/FloatingTimer';
+import { MobileFloatingTimer, isVideoPiPSupported } from './components/MobileFloatingTimer';
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -79,75 +81,118 @@ function showToast(message: string) {
   }, 3800);
 }
 
-const floatingTimer = new FloatingTimer({
-  getSnapshot: (nowEpoch) => {
-    if (state.mode === 'stopwatch') {
-      return {
-        mode: 'stopwatch',
-        status: state.stopwatch.status,
-        displayMs: getStopwatchElapsed(
-          state.stopwatch.accumulatedMs,
-          state.stopwatch.startedAtEpoch,
-          nowEpoch
-        ),
-        canStart: true
-      };
-    }
-    if (state.mode === 'countdown') {
-      const remaining =
-        state.countdown.status === 'idle'
-          ? state.countdown.durationMs
-          : state.countdown.status === 'done'
-            ? 0
-            : getCountdownRemaining(
-                state.countdown.durationMs,
-                state.countdown.accumulatedMs,
-                state.countdown.startedAtEpoch,
-                nowEpoch
-              );
-      const progress =
-        state.countdown.durationMs > 0
-          ? remaining / state.countdown.durationMs
-          : 0;
-      return {
-        mode: 'countdown',
-        status: state.countdown.status,
-        displayMs: remaining,
-        canStart: state.countdown.durationMs > 0,
-        progress
-      };
-    }
+function getFloatingSnapshot(nowEpoch: number): FloatingTimerSnapshot {
+  if (state.mode === 'stopwatch') {
     return {
-      mode: 'clock',
-      status: 'running',
-      displayMs: getLocalTimeMs(nowEpoch),
-      canStart: false
+      mode: 'stopwatch',
+      status: state.stopwatch.status,
+      displayMs: getStopwatchElapsed(
+        state.stopwatch.accumulatedMs,
+        state.stopwatch.startedAtEpoch,
+        nowEpoch
+      ),
+      canStart: true
     };
-  },
+  }
+  if (state.mode === 'countdown') {
+    const remaining =
+      state.countdown.status === 'idle'
+        ? state.countdown.durationMs
+        : state.countdown.status === 'done'
+          ? 0
+          : getCountdownRemaining(
+              state.countdown.durationMs,
+              state.countdown.accumulatedMs,
+              state.countdown.startedAtEpoch,
+              nowEpoch
+            );
+    const progress =
+      state.countdown.durationMs > 0
+        ? remaining / state.countdown.durationMs
+        : 0;
+    return {
+      mode: 'countdown',
+      status: state.countdown.status,
+      displayMs: remaining,
+      canStart: state.countdown.durationMs > 0,
+      progress
+    };
+  }
+  return {
+    mode: 'clock',
+    status: 'running',
+    displayMs: getLocalTimeMs(nowEpoch),
+    canStart: false
+  };
+}
+
+function handleFloatingOpenChange(isOpen: boolean) {
+  btnFloat.classList.toggle('is-active', isOpen);
+  btnFloat.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+  btnFloat.setAttribute(
+    'aria-label',
+    isOpen ? 'Close floating timer' : 'Open floating timer'
+  );
+  btnFloat.title = isOpen ? 'Close floating timer' : 'Float timer';
+}
+
+const floatingTimer = new FloatingTimer({
+  getSnapshot: getFloatingSnapshot,
   onToggleStartPause: () => {
     toggleStartPause();
   },
   onCountdownComplete: () => {
     completeCountdown();
   },
-  onOpenChange: (isOpen) => {
-    btnFloat.classList.toggle('is-active', isOpen);
-    btnFloat.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
-    btnFloat.setAttribute(
-      'aria-label',
-      isOpen ? 'Close floating timer' : 'Open floating timer'
-    );
-    btnFloat.title = isOpen ? 'Close floating timer' : 'Float timer';
-  },
+  onOpenChange: handleFloatingOpenChange,
   onUnsupportedOrError: (message) => {
     showToast(message);
   }
 });
 
+const mobileFloatingTimer = new MobileFloatingTimer({
+  getSnapshot: getFloatingSnapshot,
+  onToggleStartPause: () => {
+    toggleStartPause();
+  },
+  onCountdownComplete: () => {
+    completeCountdown();
+  },
+  onOpenChange: handleFloatingOpenChange,
+  onUnsupportedOrError: (message) => {
+    showToast(message);
+  }
+});
+
+function syncFloatingTimers() {
+  floatingTimer.sync();
+  mobileFloatingTimer.sync();
+}
+
+function toggleFloatingTimer() {
+  if (isDocumentPiPSupported()) {
+    void floatingTimer.toggle();
+    return;
+  }
+  if (isVideoPiPSupported()) {
+    if (state.mode === 'countdown') {
+      void requestCountdownNotificationPermission();
+    }
+    void mobileFloatingTimer.toggle();
+    return;
+  }
+  if (state.mode === 'countdown') {
+    void requestCountdownNotificationPermission();
+  }
+  showToast(
+    "Floating timer isn't supported in this browser. Open in Chrome for desktop or Android for Picture-in-Picture."
+  );
+}
+
 countdownInput.onDurationChange = (ms) => {
   state.countdown.durationMs = ms;
   saveState(state);
-  floatingTimer.sync();
+  syncFloatingTimers();
 };
 
 const MODES: TempoMode[] = ['stopwatch', 'countdown', 'clock'];
@@ -159,7 +204,7 @@ function setMode(newMode: TempoMode) {
   renderUI();
   updateTimeDisplay();
   syncLoops();
-  floatingTimer.sync();
+  syncFloatingTimers();
 }
 
 modeButtons.forEach(btn => {
@@ -177,6 +222,9 @@ async function updateWakeLock() {
   if (needsLock && !wakeLock && 'wakeLock' in navigator) {
     try {
       wakeLock = await (navigator as any).wakeLock.request('screen');
+      wakeLock?.addEventListener?.('release', () => {
+        wakeLock = null;
+      });
     } catch (err) {
       console.warn('Wake Lock request failed:', err);
     }
@@ -295,7 +343,15 @@ function completeCountdown() {
   timeDisplay.setIdle(false);
   timeDisplay.updateTime(0);
   countdownClock.update(0, state.countdown.durationMs);
-  floatingTimer.sync();
+  syncFloatingTimers();
+
+  if (
+    document.visibilityState !== 'visible' ||
+    floatingTimer.isOpen() ||
+    mobileFloatingTimer.isOpen()
+  ) {
+    void notifyCountdownDone();
+  }
 }
 
 function updateTimeDisplay() {
@@ -368,10 +424,12 @@ subscribeToLoop(() => {
 subscribeToBackgroundTick(() => {
   if (isTimerRunning()) {
     updateBackgroundTitle();
+    mobileFloatingTimer.renderBackgroundFrame();
   }
 });
 
 // Initialization
+void registerNotificationServiceWorker();
 renderUI();
 updateTimeDisplay();
 syncLoops();
@@ -380,21 +438,22 @@ function toggleStartPause() {
   if (state.mode === 'stopwatch') {
     if (state.stopwatch.status === 'idle' || state.stopwatch.status === 'paused') {
       state.stopwatch.status = 'running'; state.stopwatch.startedAtEpoch = Date.now();
-      saveState(state); renderUI(); updateTimeDisplay(); syncLoops(); floatingTimer.sync();
+      saveState(state); renderUI(); updateTimeDisplay(); syncLoops(); syncFloatingTimers();
     } else if (state.stopwatch.status === 'running') {
       state.stopwatch.accumulatedMs = getStopwatchElapsed(state.stopwatch.accumulatedMs, state.stopwatch.startedAtEpoch, Date.now());
       state.stopwatch.startedAtEpoch = null; state.stopwatch.status = 'paused';
-      saveState(state); renderUI(); syncLoops(); updateTimeDisplay(); floatingTimer.sync();
+      saveState(state); renderUI(); syncLoops(); updateTimeDisplay(); syncFloatingTimers();
     }
   } else if (state.mode === 'countdown') {
     if (state.countdown.status === 'idle' || state.countdown.status === 'paused') {
       if (state.countdown.durationMs === 0) return;
+      void requestCountdownNotificationPermission();
       state.countdown.status = 'running'; state.countdown.startedAtEpoch = Date.now();
-      saveState(state); renderUI(); updateTimeDisplay(); syncLoops(); floatingTimer.sync();
+      saveState(state); renderUI(); updateTimeDisplay(); syncLoops(); syncFloatingTimers();
     } else if (state.countdown.status === 'running') {
       state.countdown.accumulatedMs = state.countdown.durationMs - getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, Date.now());
       state.countdown.startedAtEpoch = null; state.countdown.status = 'paused';
-      saveState(state); renderUI(); syncLoops(); updateTimeDisplay(); floatingTimer.sync();
+      saveState(state); renderUI(); syncLoops(); updateTimeDisplay(); syncFloatingTimers();
     } else if (state.countdown.status === 'done') {
       resetTimer();
     }
@@ -404,10 +463,10 @@ function toggleStartPause() {
 function resetTimer() {
   if (state.mode === 'stopwatch') {
     state.stopwatch.status = 'idle'; state.stopwatch.accumulatedMs = 0; state.stopwatch.startedAtEpoch = null;
-    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); floatingTimer.sync();
+    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); syncFloatingTimers();
   } else if (state.mode === 'countdown') {
     state.countdown.status = 'idle'; state.countdown.accumulatedMs = 0; state.countdown.startedAtEpoch = null;
-    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); floatingTimer.sync();
+    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); syncFloatingTimers();
   }
 }
 
@@ -416,7 +475,7 @@ btnStart.addEventListener('click', toggleStartPause);
 btnReset.addEventListener('click', resetTimer);
 
 btnFloat.addEventListener('click', () => {
-  void floatingTimer.toggle();
+  toggleFloatingTimer();
 });
 
 timeContainer.addEventListener('click', (e) => {
@@ -491,7 +550,9 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
   syncLoops();
   if (document.visibilityState === 'visible') {
+    void updateWakeLock();
     updateTimeDisplay();
+    syncFloatingTimers();
   } else {
     setDocumentTitle(getTabTitle(state, Date.now()));
     saveState(state);
