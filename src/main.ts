@@ -1,16 +1,40 @@
 import './style.css';
-import { loadState, saveState } from './store';
+import {
+  loadState,
+  saveState,
+  loadSpokenRemindersEnabled,
+  saveSpokenRemindersEnabled
+} from './store';
 import type { TempoMode } from './store';
 import { getStopwatchElapsed, getCountdownRemaining } from './engine/time';
 import { getTabTitle } from './engine/title';
 import { startLoop, stopLoop, subscribeToLoop } from './engine/loop';
 import { startBackgroundTicker, stopBackgroundTicker, subscribeToBackgroundTick } from './engine/backgroundTicker';
 import { registerNotificationServiceWorker, requestCountdownNotificationPermission, notifyCountdownDone } from './engine/notifications';
+import { CountdownReminderTracker } from './engine/countdownSchedule';
+import { SpeechSpeaker, isSpeechSupported } from './engine/speech';
+import { unlockCompletionAudio, playCompletionSound } from './engine/sound';
 import { TimeDisplay } from './components/TimeDisplay';
 import { CountdownInput } from './components/CountdownInput';
 import { CountdownClock } from './components/CountdownClock';
 import { FloatingTimer, isDocumentPiPSupported, type FloatingTimerSnapshot } from './components/FloatingTimer';
 import { MobileFloatingTimer, isVideoPiPSupported } from './components/MobileFloatingTimer';
+
+const VOICE_ON_ICON = `
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+  </svg>
+`;
+
+const VOICE_OFF_ICON = `
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <line x1="22" y1="9" x2="16" y2="15" />
+    <line x1="16" y1="9" x2="22" y2="15" />
+  </svg>
+`;
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -24,6 +48,9 @@ app.innerHTML = `
   </main>
   <footer class="controls">
     <span class="controls-spacer" aria-hidden="true"></span>
+    <button id="btn-voice" class="secondary icon-btn voice-btn" type="button" aria-label="Spoken countdown reminders on" aria-pressed="true" title="Spoken reminders: On" style="display: none;">
+      ${VOICE_ON_ICON}
+    </button>
     <button id="btn-reset" class="secondary" style="display: none;">Reset</button>
     <button id="btn-start" class="primary">Start</button>
     <button id="btn-float" class="secondary icon-btn float-btn" type="button" aria-label="Open floating timer" aria-pressed="false" title="Float timer">
@@ -44,6 +71,7 @@ const timeContainer = app.querySelector('.time-container') as HTMLElement;
 const clockDate = app.querySelector('.clock-date') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnReset = document.getElementById('btn-reset') as HTMLButtonElement;
+const btnVoice = document.getElementById('btn-voice') as HTMLButtonElement;
 const btnFloat = document.getElementById('btn-float') as HTMLButtonElement;
 const btnFullscreen = document.getElementById('btn-fullscreen') as HTMLButtonElement;
 const toastEl = document.getElementById('toast-message') as HTMLElement;
@@ -56,6 +84,16 @@ if ('requestFullscreen' in document.documentElement) {
 }
 
 const state = loadState();
+let spokenRemindersEnabled = loadSpokenRemindersEnabled();
+const reminderTracker = new CountdownReminderTracker();
+const speechSpeaker = new SpeechSpeaker({
+  onBlocked: () => {
+    if (spokenRemindersEnabled) {
+      showToast('Voice playback was blocked until interaction. Tap Start or Resume to enable spoken reminders.');
+    }
+  }
+});
+
 const timeDisplay = new TimeDisplay(timeContainer);
 let countdownInput = new CountdownInput(timeContainer, state.countdown.durationMs);
 const countdownClock = new CountdownClock(timeContainer);
@@ -148,6 +186,11 @@ const floatingTimer = new FloatingTimer({
   onOpenChange: handleFloatingOpenChange,
   onUnsupportedOrError: (message) => {
     showToast(message);
+  },
+  onTick: (snap, nowEpoch) => {
+    if (snap.mode === 'countdown' && snap.status === 'running') {
+      processCountdownReminders(nowEpoch);
+    }
   }
 });
 
@@ -192,6 +235,7 @@ function toggleFloatingTimer() {
 
 countdownInput.onDurationChange = (ms) => {
   state.countdown.durationMs = ms;
+  reminderTracker.reset(ms);
   saveState(state);
   syncFloatingTimers();
 };
@@ -200,6 +244,9 @@ const MODES: TempoMode[] = ['stopwatch', 'countdown', 'clock'];
 
 function setMode(newMode: TempoMode) {
   if (state.mode === newMode) return;
+  if (state.mode === 'countdown' && newMode !== 'countdown') {
+    speechSpeaker.cancel();
+  }
   state.mode = newMode;
   saveState(state);
   renderUI();
@@ -237,8 +284,21 @@ async function updateWakeLock() {
   }
 }
 
+function updateVoiceToggleUI() {
+  const active = spokenRemindersEnabled && isSpeechSupported();
+  btnVoice.classList.toggle('is-enabled', active);
+  btnVoice.setAttribute('aria-pressed', active ? 'true' : 'false');
+  btnVoice.setAttribute(
+    'aria-label',
+    active ? 'Spoken countdown reminders on' : 'Spoken countdown reminders off'
+  );
+  btnVoice.title = active ? 'Spoken reminders: On' : 'Spoken reminders: Off';
+  btnVoice.innerHTML = active ? VOICE_ON_ICON : VOICE_OFF_ICON;
+}
+
 function renderUI() {
   updateWakeLock();
+  updateVoiceToggleUI();
   // Update Segmented Control
   modeButtons.forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-mode') === state.mode));
   timeDisplay.setDisplayMode(state.mode);
@@ -247,6 +307,7 @@ function renderUI() {
 
   if (state.mode === 'stopwatch') {
     controls.style.visibility = 'visible';
+    btnVoice.style.display = 'none';
     clockDate.style.display = 'none';
     timeDisplay.el.style.display = 'flex';
     timeDisplay.el.classList.remove('pulse');
@@ -262,35 +323,38 @@ function renderUI() {
     }
   } else if (state.mode === 'countdown') {
     controls.style.visibility = 'visible';
+    btnVoice.style.display = 'inline-flex';
+    controlsSpacer.style.display = 'none';
     clockDate.style.display = 'none';
     if (state.countdown.status === 'idle') {
       timeDisplay.el.style.display = 'none';
       countdownClock.hide();
       countdownInput.show();
-      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
+      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'running') {
       timeDisplay.el.style.display = 'none';
       countdownInput.hide();
       countdownClock.show();
-      btnStart.textContent = 'Pause Countdown'; btnStart.className = 'secondary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
+      btnStart.textContent = 'Pause Countdown'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'paused') {
       timeDisplay.el.style.display = 'none';
       countdownInput.hide();
       countdownClock.show();
-      btnStart.textContent = 'Resume Countdown'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex'; controlsSpacer.style.display = 'none';
+      btnStart.textContent = 'Resume Countdown'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'done') {
       timeDisplay.el.style.display = 'none';
       countdownInput.hide();
       countdownClock.show();
-      btnStart.textContent = 'Dismiss'; btnStart.className = 'primary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
+      btnStart.textContent = 'Dismiss'; btnStart.className = 'primary'; btnReset.style.display = 'none';
       timeDisplay.el.classList.add('pulse'); // We'll handle pulsing inside countdownClock for done state
       countdownClock.setPulse(true);
     }
   } else if (state.mode === 'clock') {
     controls.style.visibility = 'hidden';
+    btnVoice.style.display = 'none';
     clockDate.style.display = 'block';
     timeDisplay.el.style.display = 'flex';
     countdownInput.hide();
@@ -323,7 +387,42 @@ function getBackgroundTickIntervalMs(): number {
   ) {
     return 16;
   }
+  if (
+    spokenRemindersEnabled &&
+    state.mode === 'countdown' &&
+    state.countdown.status === 'running'
+  ) {
+    const remaining = getCountdownRemaining(
+      state.countdown.durationMs,
+      state.countdown.accumulatedMs,
+      state.countdown.startedAtEpoch,
+      Date.now()
+    );
+    if (remaining <= 13_000) {
+      return 100;
+    }
+  }
   return 200;
+}
+
+function processCountdownReminders(nowEpoch: number) {
+  if (state.mode !== 'countdown' || state.countdown.status !== 'running') {
+    return;
+  }
+  const remaining = getCountdownRemaining(
+    state.countdown.durationMs,
+    state.countdown.accumulatedMs,
+    state.countdown.startedAtEpoch,
+    nowEpoch
+  );
+  const cue = reminderTracker.evaluate(
+    state.countdown.durationMs,
+    remaining,
+    true
+  );
+  if (cue && spokenRemindersEnabled) {
+    speechSpeaker.speak(cue.text, { urgent: cue.urgent });
+  }
 }
 
 function syncLoops() {
@@ -347,6 +446,8 @@ function syncLoops() {
 
 function completeCountdown() {
   if (state.countdown.status === 'done') return;
+  speechSpeaker.cancel();
+  reminderTracker.reset(state.countdown.durationMs);
   state.countdown.status = 'done';
   state.countdown.startedAtEpoch = null;
   state.countdown.accumulatedMs = state.countdown.durationMs;
@@ -358,6 +459,7 @@ function completeCountdown() {
   timeDisplay.updateTime(0);
   countdownClock.update(0, state.countdown.durationMs);
   syncFloatingTimers();
+  playCompletionSound();
 
   if (
     document.visibilityState !== 'visible' ||
@@ -397,6 +499,7 @@ function updateTimeDisplay() {
         timeDisplay.updateTime(remaining);
         countdownClock.update(remaining, state.countdown.durationMs);
         setDocumentTitle(getTabTitle(state, now));
+        processCountdownReminders(now);
       }
     }
   } else if (state.mode === 'clock') {
@@ -421,6 +524,8 @@ function updateBackgroundTitle() {
       completeCountdown();
       return;
     }
+    processCountdownReminders(now);
+    startBackgroundTicker(getBackgroundTickIntervalMs());
   }
   setDocumentTitle(getTabTitle(state, now));
 }
@@ -463,10 +568,19 @@ function toggleStartPause() {
   } else if (state.mode === 'countdown') {
     if (state.countdown.status === 'idle' || state.countdown.status === 'paused') {
       if (state.countdown.durationMs === 0) return;
+      const wasIdle = state.countdown.status === 'idle';
+      if (wasIdle) {
+        reminderTracker.reset(state.countdown.durationMs);
+      }
+      unlockCompletionAudio();
+      if (spokenRemindersEnabled) {
+        speechSpeaker.prime();
+      }
       void requestCountdownNotificationPermission();
       state.countdown.status = 'running'; state.countdown.startedAtEpoch = Date.now();
       saveState(state); renderUI(); updateTimeDisplay(); syncLoops(); syncFloatingTimers();
     } else if (state.countdown.status === 'running') {
+      speechSpeaker.cancel();
       state.countdown.accumulatedMs = state.countdown.durationMs - getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, Date.now());
       state.countdown.startedAtEpoch = null; state.countdown.status = 'paused';
       saveState(state); renderUI(); syncLoops(); updateTimeDisplay(); syncFloatingTimers();
@@ -481,7 +595,9 @@ function resetTimer() {
     state.stopwatch.status = 'idle'; state.stopwatch.accumulatedMs = 0; state.stopwatch.startedAtEpoch = null;
     saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); syncFloatingTimers();
   } else if (state.mode === 'countdown') {
+    speechSpeaker.cancel();
     state.countdown.status = 'idle'; state.countdown.accumulatedMs = 0; state.countdown.startedAtEpoch = null;
+    reminderTracker.reset(state.countdown.durationMs);
     saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); syncFloatingTimers();
   }
 }
@@ -489,6 +605,24 @@ function resetTimer() {
 btnStart.addEventListener('click', toggleStartPause);
 
 btnReset.addEventListener('click', resetTimer);
+
+btnVoice.addEventListener('click', () => {
+  if (!isSpeechSupported()) {
+    showToast("Spoken reminders aren't supported in this browser.");
+    return;
+  }
+  spokenRemindersEnabled = !spokenRemindersEnabled;
+  saveSpokenRemindersEnabled(spokenRemindersEnabled);
+  if (spokenRemindersEnabled) {
+    speechSpeaker.prime();
+    showToast('Spoken reminders on');
+  } else {
+    speechSpeaker.cancel();
+    showToast('Spoken reminders off');
+  }
+  updateVoiceToggleUI();
+  syncLoops();
+});
 
 btnFloat.addEventListener('click', () => {
   toggleFloatingTimer();

@@ -237,10 +237,31 @@ button.icon-btn {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+.voice-btn {
+  color: #737373;
+}
+
+.voice-btn:hover {
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.35);
+  background-color: var(--color-surface-raised);
+}
+
+.voice-btn.is-enabled {
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
 @media (max-width: 420px) {
   .controls {
     padding: var(--spacing-md) var(--spacing-md) 84px;
-    gap: 10px;
+    gap: 8px;
+  }
+
+  button.icon-btn {
+    width: 44px;
+    height: 44px;
   }
 
   .controls button.primary,

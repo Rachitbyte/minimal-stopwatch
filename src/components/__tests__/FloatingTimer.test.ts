@@ -348,17 +348,15 @@ describe('FloatingTimer', () => {
         progress: 0.5
       };
 
-      const onCountdownComplete = vi.fn(() => {
-        snapshot = { ...snapshot, status: 'done', displayMs: 0, progress: 0 };
-        timer.sync();
-      });
-
+      const onCountdownComplete = vi.fn();
+      const onTick = vi.fn();
       const timer = new FloatingTimer({
         getSnapshot: () => snapshot,
         onToggleStartPause: vi.fn(),
         onCountdownComplete,
         onOpenChange: vi.fn(),
-        onUnsupportedOrError: vi.fn()
+        onUnsupportedOrError: vi.fn(),
+        onTick
       });
 
       await timer.open();
@@ -366,7 +364,15 @@ describe('FloatingTimer', () => {
       expect(pipWin.elements.progressTrack.style.display).toBe('block');
       expect(pipWin.elements.progressFill.style.transform).toBe('scaleX(0.5)');
 
+      snapshot = { ...snapshot, displayMs: 4200, progress: 0.42 };
+      pipWin.flushFrame();
+      expect(onTick).toHaveBeenCalledWith(snapshot, expect.any(Number));
+
       snapshot = { ...snapshot, displayMs: 0, progress: 0 };
+      onCountdownComplete.mockImplementation(() => {
+        snapshot = { ...snapshot, status: 'done', displayMs: 0, progress: 0 };
+        timer.sync();
+      });
       pipWin.flushFrame();
 
       expect(onCountdownComplete).toHaveBeenCalledTimes(1);

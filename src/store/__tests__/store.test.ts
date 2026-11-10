@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { loadState, saveState, DEFAULT_STATE } from '../index';
+import {
+  loadState,
+  saveState,
+  DEFAULT_STATE,
+  loadSpokenRemindersEnabled,
+  saveSpokenRemindersEnabled
+} from '../index';
 import type { TempoState } from '../index';
 
 const localStorageMock = (() => {
@@ -34,5 +40,13 @@ describe('Store Logic', () => {
     };
     saveState(customState); // This is now a no-op
     expect(loadState()).toEqual(DEFAULT_STATE); // Should load default, not customState
+  });
+
+  it('persists spoken reminders toggle preference across reloads', () => {
+    expect(loadSpokenRemindersEnabled()).toBe(true);
+    saveSpokenRemindersEnabled(false);
+    expect(loadSpokenRemindersEnabled()).toBe(false);
+    saveSpokenRemindersEnabled(true);
+    expect(loadSpokenRemindersEnabled()).toBe(true);
   });
 });

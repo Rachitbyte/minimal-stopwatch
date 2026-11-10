@@ -16,6 +16,7 @@ export interface FloatingTimerOptions {
   onCountdownComplete: () => void;
   onOpenChange: (isOpen: boolean) => void;
   onUnsupportedOrError: (message: string) => void;
+  onTick?: (snap: FloatingTimerSnapshot, nowEpoch: number) => void;
 }
 
 interface DocumentPiPWindow extends Window {
@@ -573,12 +574,15 @@ export class FloatingTimer {
         return;
       }
 
-      const snap = this.updateView(Date.now());
+      const nowEpoch = Date.now();
+      const snap = this.updateView(nowEpoch);
       if (snap.mode === 'countdown' && snap.status === 'running' && snap.displayMs === 0) {
         this.rafId = null;
         this.options.onCountdownComplete();
         return;
       }
+
+      this.options.onTick?.(snap, nowEpoch);
 
       const keepTicking = snap.mode === 'clock' || snap.status === 'running';
       if (keepTicking) {

@@ -36,3 +36,23 @@ export function saveState(_state: TempoState): void {
   // No-op: Local storage persistence has been removed
   // State is now only kept in-memory while the tab is open
 }
+
+const SPOKEN_REMINDERS_KEY = 'tempo:spoken-reminders:v1';
+
+export function loadSpokenRemindersEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem(SPOKEN_REMINDERS_KEY);
+    if (raw === null) return true;
+    return raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function saveSpokenRemindersEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(SPOKEN_REMINDERS_KEY, enabled ? 'true' : 'false');
+  } catch {
+    // Ignore storage failures (e.g. disabled storage / private mode)
+  }
+}
