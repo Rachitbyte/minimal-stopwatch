@@ -163,8 +163,22 @@ export class TimeDisplay {
     const currentNum = parseInt(data.val);
     
     if (targetNum === (currentNum + 1) % 10) {
+      if (data.currentIdx >= 11) {
+        data.el.classList.add('no-transition');
+        data.currentIdx = 1;
+        data.el.style.transform = `translateY(-1em)`;
+        void data.el.offsetHeight;
+        data.el.classList.remove('no-transition');
+      }
       data.currentIdx++;
     } else if (currentNum === (targetNum + 1) % 10) {
+      if (data.currentIdx <= 0) {
+        data.el.classList.add('no-transition');
+        data.currentIdx = 10;
+        data.el.style.transform = `translateY(-10em)`;
+        void data.el.offsetHeight;
+        data.el.classList.remove('no-transition');
+      }
       data.currentIdx--;
     } else {
       data.el.classList.add('no-transition');

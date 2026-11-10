@@ -2,7 +2,9 @@ import './style.css';
 import { loadState, saveState } from './store';
 import type { TempoMode } from './store';
 import { getStopwatchElapsed, getCountdownRemaining } from './engine/time';
+import { getTabTitle } from './engine/title';
 import { startLoop, stopLoop, subscribeToLoop } from './engine/loop';
+import { startBackgroundTicker, stopBackgroundTicker, subscribeToBackgroundTick } from './engine/backgroundTicker';
 import { TimeDisplay } from './components/TimeDisplay';
 import { CountdownInput } from './components/CountdownInput';
 import { CountdownClock } from './components/CountdownClock';
@@ -57,14 +59,7 @@ function setMode(newMode: TempoMode) {
   saveState(state);
   renderUI();
   updateTimeDisplay();
-  
-  if (state.mode === 'clock' || 
-     (state.mode === 'stopwatch' && state.stopwatch.status === 'running') ||
-     (state.mode === 'countdown' && state.countdown.status === 'running')) {
-    startLoop();
-  } else {
-    stopLoop();
-  }
+  syncLoops();
 }
 
 modeButtons.forEach(btn => {
@@ -160,66 +155,81 @@ function getLocalTimeMs(now: number) {
   return (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) * 1000 + d.getMilliseconds();
 }
 
-function formatTitle(ms: number) {
-  const totalSec = Math.floor(ms / 1000);
-  const s = totalSec % 60;
-  const m = Math.floor(totalSec / 60) % 60;
-  const h = Math.floor(totalSec / 3600);
-  let str = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  if (h > 0) str = `${h.toString().padStart(2, '0')}:` + str;
-  return `${str} - Tempo`;
+function setDocumentTitle(nextTitle: string) {
+  if (document.title !== nextTitle) {
+    document.title = nextTitle;
+  }
+}
+
+function isTimerRunning(): boolean {
+  return (state.mode === 'stopwatch' && state.stopwatch.status === 'running') ||
+         (state.mode === 'countdown' && state.countdown.status === 'running');
+}
+
+function syncLoops() {
+  const isVisible = document.visibilityState === 'visible';
+  const runningTimer = isTimerRunning();
+
+  if (isVisible && (state.mode === 'clock' || runningTimer)) {
+    startLoop();
+  } else {
+    stopLoop();
+  }
+
+  if (!isVisible && runningTimer) {
+    startBackgroundTicker();
+  } else {
+    stopBackgroundTicker();
+  }
+}
+
+function completeCountdown() {
+  if (state.countdown.status === 'done') return;
+  state.countdown.status = 'done';
+  state.countdown.startedAtEpoch = null;
+  state.countdown.accumulatedMs = state.countdown.durationMs;
+  saveState(state);
+  setDocumentTitle('Done - Tempo');
+  syncLoops();
+  renderUI();
+  timeDisplay.setIdle(false);
+  timeDisplay.updateTime(0);
+  countdownClock.update(0, state.countdown.durationMs);
 }
 
 function updateTimeDisplay() {
+  const now = Date.now();
+
   if (state.mode === 'stopwatch') {
     if (state.stopwatch.status === 'idle') {
       timeDisplay.setIdle(true); timeDisplay.updateTime(0);
-      document.title = 'Tempo';
     } else {
       timeDisplay.setIdle(false);
-      const elapsed = getStopwatchElapsed(state.stopwatch.accumulatedMs, state.stopwatch.startedAtEpoch, Date.now());
+      const elapsed = getStopwatchElapsed(state.stopwatch.accumulatedMs, state.stopwatch.startedAtEpoch, now);
       timeDisplay.updateTime(elapsed);
-      if (state.stopwatch.status === 'running') {
-        document.title = formatTitle(elapsed);
-      } else if (state.stopwatch.status === 'paused') {
-        document.title = `Paused - ${formatTitle(elapsed)}`;
-      } else {
-        document.title = 'Tempo';
-      }
     }
+    setDocumentTitle(getTabTitle(state, now));
   } else if (state.mode === 'countdown') {
     if (state.countdown.status === 'idle') {
-      // hidden
+      setDocumentTitle(getTabTitle(state, now));
     } else if (state.countdown.status === 'done') {
       timeDisplay.setIdle(false);
       timeDisplay.updateTime(0);
       countdownClock.update(0, state.countdown.durationMs);
-      document.title = 'Done - Tempo';
+      setDocumentTitle(getTabTitle(state, now));
     } else {
-      timeDisplay.setIdle(false);
-      const remaining = getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, Date.now());
-      timeDisplay.updateTime(remaining);
-      countdownClock.update(remaining, state.countdown.durationMs);
-      if (state.countdown.status === 'running') {
-        document.title = formatTitle(remaining);
-      } else if (state.countdown.status === 'paused') {
-        document.title = `Paused - ${formatTitle(remaining)}`;
-      } else {
-        document.title = 'Tempo';
-      }
-      
+      const remaining = getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, now);
       if (remaining === 0 && state.countdown.status === 'running') {
-        state.countdown.status = 'done';
-        state.countdown.startedAtEpoch = null;
-        state.countdown.accumulatedMs = state.countdown.durationMs;
-        saveState(state);
-        stopLoop();
-        renderUI();
+        completeCountdown();
+      } else {
+        timeDisplay.setIdle(false);
+        timeDisplay.updateTime(remaining);
+        countdownClock.update(remaining, state.countdown.durationMs);
+        setDocumentTitle(getTabTitle(state, now));
       }
     }
   } else if (state.mode === 'clock') {
     timeDisplay.setIdle(false);
-    const now = Date.now();
     timeDisplay.updateTime(getLocalTimeMs(now));
     
     const d = new Date(now);
@@ -228,8 +238,20 @@ function updateTimeDisplay() {
       clockDate.textContent = dateStr;
     }
     
-    document.title = 'Tempo';
+    setDocumentTitle(getTabTitle(state, now));
   }
+}
+
+function updateBackgroundTitle() {
+  const now = Date.now();
+  if (state.mode === 'countdown' && state.countdown.status === 'running') {
+    const remaining = getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, now);
+    if (remaining === 0) {
+      completeCountdown();
+      return;
+    }
+  }
+  setDocumentTitle(getTabTitle(state, now));
 }
 
 subscribeToLoop(() => {
@@ -242,34 +264,36 @@ subscribeToLoop(() => {
   }
 });
 
+subscribeToBackgroundTick(() => {
+  if (isTimerRunning()) {
+    updateBackgroundTitle();
+  }
+});
+
 // Initialization
 renderUI();
 updateTimeDisplay();
-if (state.mode === 'clock' || 
-   (state.mode === 'stopwatch' && state.stopwatch.status === 'running') || 
-   (state.mode === 'countdown' && state.countdown.status === 'running')) {
-  startLoop();
-}
+syncLoops();
 
 btnStart.addEventListener('click', () => {
   if (state.mode === 'stopwatch') {
     if (state.stopwatch.status === 'idle' || state.stopwatch.status === 'paused') {
       state.stopwatch.status = 'running'; state.stopwatch.startedAtEpoch = Date.now();
-      saveState(state); renderUI(); startLoop();
+      saveState(state); renderUI(); updateTimeDisplay(); syncLoops();
     } else if (state.stopwatch.status === 'running') {
       state.stopwatch.accumulatedMs = getStopwatchElapsed(state.stopwatch.accumulatedMs, state.stopwatch.startedAtEpoch, Date.now());
       state.stopwatch.startedAtEpoch = null; state.stopwatch.status = 'paused';
-      saveState(state); renderUI(); stopLoop(); updateTimeDisplay();
+      saveState(state); renderUI(); syncLoops(); updateTimeDisplay();
     }
   } else if (state.mode === 'countdown') {
     if (state.countdown.status === 'idle' || state.countdown.status === 'paused') {
       if (state.countdown.durationMs === 0) return;
       state.countdown.status = 'running'; state.countdown.startedAtEpoch = Date.now();
-      saveState(state); renderUI(); startLoop();
+      saveState(state); renderUI(); updateTimeDisplay(); syncLoops();
     } else if (state.countdown.status === 'running') {
       state.countdown.accumulatedMs = state.countdown.durationMs - getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, Date.now());
       state.countdown.startedAtEpoch = null; state.countdown.status = 'paused';
-      saveState(state); renderUI(); stopLoop(); updateTimeDisplay();
+      saveState(state); renderUI(); syncLoops(); updateTimeDisplay();
     } else if (state.countdown.status === 'done') {
       btnReset.click();
     }
@@ -279,10 +303,10 @@ btnStart.addEventListener('click', () => {
 btnReset.addEventListener('click', () => {
   if (state.mode === 'stopwatch') {
     state.stopwatch.status = 'idle'; state.stopwatch.accumulatedMs = 0; state.stopwatch.startedAtEpoch = null;
-    saveState(state); renderUI(); timeDisplay.resetInstant();
+    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now()));
   } else if (state.mode === 'countdown') {
     state.countdown.status = 'idle'; state.countdown.accumulatedMs = 0; state.countdown.startedAtEpoch = null;
-    saveState(state); renderUI(); timeDisplay.resetInstant();
+    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now()));
   }
 });
 
@@ -356,13 +380,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  const needsLoop = state.mode === 'clock' || 
-                    (state.mode === 'stopwatch' && state.stopwatch.status === 'running') || 
-                    (state.mode === 'countdown' && state.countdown.status === 'running');
+  syncLoops();
   if (document.visibilityState === 'visible') {
-    if (needsLoop) { updateTimeDisplay(); startLoop(); }
+    updateTimeDisplay();
   } else {
-    if (state.mode !== 'clock') stopLoop();
+    setDocumentTitle(getTabTitle(state, Date.now()));
     saveState(state);
   }
 });
