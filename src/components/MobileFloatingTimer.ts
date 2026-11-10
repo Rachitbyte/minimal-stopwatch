@@ -44,8 +44,8 @@ export function isVideoPiPSupported(): boolean {
   );
 }
 
-const CANVAS_WIDTH = 768;
-const CANVAS_HEIGHT = 384;
+const CANVAS_WIDTH = 520;
+const CANVAS_HEIGHT = 448;
 const CAPTURE_FPS = 15;
 
 function drawRoundedRect(
@@ -119,6 +119,23 @@ export class MobileFloatingTimer {
       this.createElements();
       if (!this.canvas || !this.video) {
         throw new Error('Could not initialize video stream elements.');
+      }
+
+      const docFonts = (
+        document as unknown as {
+          fonts?: { load?: (font: string) => Promise<unknown> };
+        }
+      ).fonts;
+      if (docFonts && typeof docFonts.load === 'function') {
+        void Promise.allSettled([
+          docFonts.load('400 78px "Geist Mono"'),
+          docFonts.load('400 22px "Geist Sans"')
+        ]).then(() => {
+          if (this.isOpen()) {
+            this.lastFrameKey = '';
+            this.sync();
+          }
+        });
       }
 
       const initialSnap = this.drawFrame(Date.now());
@@ -480,24 +497,24 @@ export class MobileFloatingTimer {
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Dynamic Island pill container
-    const pillX = 32;
-    const pillY = 44;
-    const pillW = CANVAS_WIDTH - pillX * 2;
-    const pillH = CANVAS_HEIGHT - pillY * 2;
-    const pillR = pillH / 2;
+    // Compact rounded card matching Android's floating PiP aspect ratio (~1.2:1)
+    const cardX = 20;
+    const cardY = 20;
+    const cardW = CANVAS_WIDTH - cardX * 2;
+    const cardH = CANVAS_HEIGHT - cardY * 2;
+    const cardR = 64;
 
-    drawRoundedRect(ctx, pillX, pillY, pillW, pillH, pillR);
+    drawRoundedRect(ctx, cardX, cardY, cardW, cardH, cardR);
     ctx.fillStyle = '#0A0A0A';
     ctx.fill();
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.strokeStyle =
       snap.status === 'done'
         ? 'rgba(255, 255, 255, 0.55)'
-        : 'rgba(255, 255, 255, 0.18)';
+        : 'rgba(255, 255, 255, 0.16)';
     ctx.stroke();
 
-    // Status label + dot near top of pill
+    // Status label + dot near top of card
     const modeTitle =
       snap.mode === 'stopwatch'
         ? 'STOPWATCH'
@@ -514,13 +531,13 @@ export class MobileFloatingTimer {
             : '';
     const labelText = `${modeTitle}${statusSuffix}`;
 
-    ctx.font = '600 22px "Geist", system-ui, -apple-system, sans-serif';
+    ctx.font = '400 22px "Geist Sans", "Geist", system-ui, -apple-system, sans-serif';
     const labelWidth = ctx.measureText(labelText).width;
     const dotSize = 10;
-    const dotGap = 14;
+    const dotGap = 12;
     const totalLabelW = dotSize + dotGap + labelWidth;
     const labelStartX = (CANVAS_WIDTH - totalLabelW) / 2;
-    const labelY = pillY + 72;
+    const labelY = cardY + 100;
 
     ctx.beginPath();
     ctx.arc(labelStartX + dotSize / 2, labelY - 7, dotSize / 2, 0, Math.PI * 2);
@@ -535,21 +552,41 @@ export class MobileFloatingTimer {
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(labelText, labelStartX + dotSize + dotGap, labelY);
 
-    // Main time display
-    const mainFont = '500 104px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-    const subFont = '400 58px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+    // Main time display (weight 400 matches bundled @fontsource/geist-mono)
+    const baseMainSize = sub ? 66 : 78;
+    const baseSubSize = 36;
+    const maxTimeWidth = cardW - 56;
+
+    let mainFont = `400 ${baseMainSize}px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
+    let subFont = `400 ${baseSubSize}px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
 
     ctx.font = mainFont;
-    const mainWidth = ctx.measureText(main).width;
+    let mainWidth = ctx.measureText(main).width;
     let subWidth = 0;
     if (sub) {
       ctx.font = subFont;
       subWidth = ctx.measureText(sub).width;
     }
 
-    const totalTimeW = mainWidth + subWidth;
+    let totalTimeW = mainWidth + subWidth;
+    if (totalTimeW > maxTimeWidth && totalTimeW > 0) {
+      const ratio = maxTimeWidth / totalTimeW;
+      mainFont = `400 ${Math.floor(baseMainSize * ratio)}px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
+      subFont = `400 ${Math.floor(baseSubSize * ratio)}px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.font = mainFont;
+      mainWidth = ctx.measureText(main).width;
+      if (sub) {
+        ctx.font = subFont;
+        subWidth = ctx.measureText(sub).width;
+      }
+      totalTimeW = mainWidth + subWidth;
+    }
+
     const timeStartX = (CANVAS_WIDTH - totalTimeW) / 2;
-    const timeY = pillY + 196;
+    const timeY =
+      snap.mode === 'countdown' && snap.status !== 'idle'
+        ? cardY + 228
+        : cardY + 242;
 
     ctx.font = mainFont;
     ctx.fillStyle =
@@ -564,24 +601,24 @@ export class MobileFloatingTimer {
       ctx.fillText(sub, timeStartX + mainWidth, timeY);
     }
 
-    // Countdown progress bar inside bottom of pill
+    // Countdown progress bar inside bottom of card
     if (
       snap.mode === 'countdown' &&
       snap.status !== 'idle' &&
       typeof snap.progress === 'number'
     ) {
-      const trackW = 360;
-      const trackH = 6;
+      const trackW = 280;
+      const trackH = 8;
       const trackX = (CANVAS_WIDTH - trackW) / 2;
-      const trackY = pillY + pillH - 42;
+      const trackY = cardY + cardH - 84;
       const clamped = Math.max(0, Math.min(1, snap.progress));
 
-      drawRoundedRect(ctx, trackX, trackY, trackW, trackH, 3);
+      drawRoundedRect(ctx, trackX, trackY, trackW, trackH, 4);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
       ctx.fill();
 
       if (clamped > 0) {
-        drawRoundedRect(ctx, trackX, trackY, Math.max(6, trackW * clamped), trackH, 3);
+        drawRoundedRect(ctx, trackX, trackY, Math.max(8, trackW * clamped), trackH, 4);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.fill();
       }

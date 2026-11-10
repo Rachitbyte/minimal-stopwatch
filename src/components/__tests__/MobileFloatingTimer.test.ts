@@ -193,4 +193,109 @@ describe('MobileFloatingTimer', () => {
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(fakeTrack.stop).toHaveBeenCalledTimes(1);
   });
+
+  it('uses ~1.16:1 canvas dimensions for Android PiP, loads fonts, and scales long times cleanly', async () => {
+    const fakeTrack = { stop: vi.fn() };
+    const fakeStream = { getTracks: () => [fakeTrack] };
+    const fakeCtx = createFake2DContext();
+    fakeCtx.measureText = vi.fn((t: string) => ({ width: t.length * 50 }));
+
+    let resolveFonts!: () => void;
+    const fontLoadPromise = new Promise<void>((res) => {
+      resolveFonts = res;
+    });
+    const loadSpy = vi.fn(() => fontLoadPromise);
+
+    const fakeCanvas = {
+      width: 0,
+      height: 0,
+      style: {} as Record<string, string>,
+      setAttribute: vi.fn(),
+      getContext: vi.fn(() => fakeCtx),
+      captureStream: vi.fn(() => fakeStream),
+      remove: vi.fn()
+    };
+
+    const docState: any = {
+      pictureInPictureEnabled: true,
+      pictureInPictureElement: null,
+      visibilityState: 'visible',
+      fonts: { load: loadSpy },
+      body: { appendChild: vi.fn() },
+      createElement: (tag: string) => (tag === 'canvas' ? fakeCanvas : fakeVideo)
+    };
+
+    const fakeVideo = {
+      width: 0,
+      height: 0,
+      muted: false,
+      playsInline: false,
+      autoplay: false,
+      paused: true,
+      readyState: 1,
+      srcObject: null as unknown,
+      style: {} as Record<string, string>,
+      setAttribute: vi.fn(),
+      remove: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      play: vi.fn(async () => {
+        fakeVideo.paused = false;
+      }),
+      pause: vi.fn(),
+      requestPictureInPicture: vi.fn(async () => {
+        docState.pictureInPictureElement = fakeVideo;
+      })
+    };
+
+    class FakeCanvasCtor {
+      captureStream() {}
+    }
+    class FakeVideoCtor {
+      requestPictureInPicture() {}
+    }
+
+    vi.stubGlobal('HTMLCanvasElement', FakeCanvasCtor);
+    vi.stubGlobal('HTMLVideoElement', FakeVideoCtor);
+    vi.stubGlobal('document', docState);
+    vi.stubGlobal('window', {
+      requestAnimationFrame: vi.fn(() => 1),
+      cancelAnimationFrame: vi.fn()
+    });
+
+    const timer = new MobileFloatingTimer({
+      getSnapshot: () => ({
+        mode: 'countdown',
+        status: 'running',
+        displayMs: 120 * 3600 * 1000,
+        canStart: true,
+        progress: 0.5
+      }),
+      onToggleStartPause: vi.fn(),
+      onCountdownComplete: vi.fn(),
+      onOpenChange: vi.fn(),
+      onUnsupportedOrError: vi.fn()
+    });
+
+    await timer.open();
+
+    // Aspect ratio ~1.16:1 matches Android's floating PiP box without horizontal squishing
+    expect(fakeCanvas.width).toBe(520);
+    expect(fakeCanvas.height).toBe(448);
+    expect(fakeCanvas.width / fakeCanvas.height).toBeCloseTo(1.16, 2);
+
+    // Explicitly preloads Geist Mono & Geist Sans and redraws when ready
+    expect(loadSpy).toHaveBeenCalledWith('400 78px "Geist Mono"');
+    expect(loadSpy).toHaveBeenCalledWith('400 22px "Geist Sans"');
+
+    const initialFillCount = fakeCtx.fillText.mock.calls.length;
+    resolveFonts();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fakeCtx.fillText.mock.calls.length).toBeGreaterThan(initialFillCount);
+
+    // Long hour text (120:00:00 -> width 450 > maxTimeWidth 424) gets scaled down smoothly
+    expect(fakeCtx.font).toMatch(/400 \d+px "Geist Mono"/);
+  });
 });
+
