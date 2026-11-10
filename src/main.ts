@@ -134,6 +134,7 @@ function handleFloatingOpenChange(isOpen: boolean) {
     isOpen ? 'Close floating timer' : 'Open floating timer'
   );
   btnFloat.title = isOpen ? 'Close floating timer' : 'Float timer';
+  syncLoops();
 }
 
 const floatingTimer = new FloatingTimer({
@@ -314,9 +315,22 @@ function isTimerRunning(): boolean {
          (state.mode === 'countdown' && state.countdown.status === 'running');
 }
 
+function getBackgroundTickIntervalMs(): number {
+  if (
+    mobileFloatingTimer.isOpen() &&
+    state.mode === 'stopwatch' &&
+    state.stopwatch.status === 'running'
+  ) {
+    return 16;
+  }
+  return 200;
+}
+
 function syncLoops() {
   const isVisible = document.visibilityState === 'visible';
   const runningTimer = isTimerRunning();
+  const needsBackgroundMobileClock =
+    !isVisible && state.mode === 'clock' && mobileFloatingTimer.isOpen();
 
   if (isVisible && (state.mode === 'clock' || runningTimer)) {
     startLoop();
@@ -324,8 +338,8 @@ function syncLoops() {
     stopLoop();
   }
 
-  if (!isVisible && runningTimer) {
-    startBackgroundTicker();
+  if ((!isVisible && runningTimer) || needsBackgroundMobileClock) {
+    startBackgroundTicker(getBackgroundTickIntervalMs());
   } else {
     stopBackgroundTicker();
   }
@@ -424,6 +438,8 @@ subscribeToLoop(() => {
 subscribeToBackgroundTick(() => {
   if (isTimerRunning()) {
     updateBackgroundTitle();
+    mobileFloatingTimer.renderBackgroundFrame();
+  } else if (state.mode === 'clock' && mobileFloatingTimer.isOpen()) {
     mobileFloatingTimer.renderBackgroundFrame();
   }
 });
@@ -555,6 +571,7 @@ document.addEventListener('visibilitychange', () => {
     syncFloatingTimers();
   } else {
     setDocumentTitle(getTabTitle(state, Date.now()));
+    mobileFloatingTimer.sync();
     saveState(state);
   }
 });

@@ -45,7 +45,7 @@ function ensureWorker(): Worker | null {
 }
 
 export function startBackgroundTicker(intervalMs = 200) {
-  if (isRunning) return;
+  if (isRunning && activeIntervalMs === intervalMs) return;
   isRunning = true;
   activeIntervalMs = intervalMs;
 
@@ -53,6 +53,9 @@ export function startBackgroundTicker(intervalMs = 200) {
   if (w) {
     w.postMessage({ type: 'start', intervalMs });
   } else {
+    if (fallbackIntervalId !== null) {
+      clearInterval(fallbackIntervalId);
+    }
     fallbackIntervalId = setInterval(notify, intervalMs);
   }
 }

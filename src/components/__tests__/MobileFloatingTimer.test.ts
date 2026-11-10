@@ -53,7 +53,7 @@ describe('MobileFloatingTimer', () => {
   });
 
   it('opens video PiP from canvas stream, syncs MediaSession, and ignores close pause', async () => {
-    const fakeTrack = { stop: vi.fn() };
+    const fakeTrack = { stop: vi.fn(), requestFrame: vi.fn() };
     const fakeStream = { getTracks: () => [fakeTrack] };
     const fakeCtx = createFake2DContext();
     const videoListeners: Record<string, Array<() => void>> = {};
@@ -166,9 +166,17 @@ describe('MobileFloatingTimer', () => {
     await timer.open();
     expect(timer.isOpen()).toBe(true);
     expect(onOpenChange).toHaveBeenCalledWith(true);
-    expect(fakeCanvas.captureStream).toHaveBeenCalledWith(15);
+    expect(fakeCanvas.captureStream).toHaveBeenCalledWith(60);
     expect(fakeVideo.requestPictureInPicture).toHaveBeenCalledTimes(1);
     expect(fakeCtx.fillText).toHaveBeenCalledWith('00:00:05', expect.any(Number), expect.any(Number));
+
+    // Background frame renders new centiseconds and requests immediate video track frame push
+    snapshot = { ...snapshot, displayMs: 5230 };
+    docState.visibilityState = 'hidden';
+    timer.renderBackgroundFrame();
+    expect(fakeCtx.fillText).toHaveBeenCalledWith('.23', expect.any(Number), expect.any(Number));
+    expect(fakeTrack.requestFrame).toHaveBeenCalled();
+    docState.visibilityState = 'visible';
 
     // Tapping Pause via MediaSession pauses the main timer
     actionHandlers['pause']?.();
@@ -195,7 +203,7 @@ describe('MobileFloatingTimer', () => {
   });
 
   it('uses ~1.16:1 canvas dimensions for Android PiP, loads fonts, and scales long times cleanly', async () => {
-    const fakeTrack = { stop: vi.fn() };
+    const fakeTrack = { stop: vi.fn(), requestFrame: vi.fn() };
     const fakeStream = { getTracks: () => [fakeTrack] };
     const fakeCtx = createFake2DContext();
     fakeCtx.measureText = vi.fn((t: string) => ({ width: t.length * 50 }));

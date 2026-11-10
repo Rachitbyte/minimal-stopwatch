@@ -46,7 +46,7 @@ export function isVideoPiPSupported(): boolean {
 
 const CANVAS_WIDTH = 520;
 const CANVAS_HEIGHT = 448;
-const CAPTURE_FPS = 15;
+const CAPTURE_FPS = 60;
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
@@ -81,6 +81,7 @@ export class MobileFloatingTimer {
   private rafId: number | null = null;
   private lastFrameKey = '';
   private lastMediaMetaKey = '';
+  private lastPlaybackState: 'none' | 'paused' | 'playing' = 'none';
 
   constructor(options: MobileFloatingTimerOptions) {
     this.options = options;
@@ -357,8 +358,11 @@ export class MobileFloatingTimer {
   private updateMediaSession(snap: FloatingTimerSnapshot): void {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
     try {
-      navigator.mediaSession.playbackState =
-        snap.status === 'running' ? 'playing' : 'paused';
+      const nextPlaybackState = snap.status === 'running' ? 'playing' : 'paused';
+      if (this.lastPlaybackState !== nextPlaybackState) {
+        this.lastPlaybackState = nextPlaybackState;
+        navigator.mediaSession.playbackState = nextPlaybackState;
+      }
 
       const modeName =
         snap.mode === 'stopwatch'
@@ -553,8 +557,9 @@ export class MobileFloatingTimer {
     ctx.fillText(labelText, labelStartX + dotSize + dotGap, labelY);
 
     // Main time display (weight 400 matches bundled @fontsource/geist-mono)
-    const baseMainSize = sub ? 66 : 78;
-    const baseSubSize = 36;
+    const baseMainSize = sub ? 68 : 78;
+    const baseSubSize = 40;
+    const subGap = sub ? 6 : 0;
     const maxTimeWidth = cardW - 56;
 
     let mainFont = `400 ${baseMainSize}px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
@@ -568,7 +573,7 @@ export class MobileFloatingTimer {
       subWidth = ctx.measureText(sub).width;
     }
 
-    let totalTimeW = mainWidth + subWidth;
+    let totalTimeW = mainWidth + subGap + subWidth;
     if (totalTimeW > maxTimeWidth && totalTimeW > 0) {
       const ratio = maxTimeWidth / totalTimeW;
       mainFont = `400 ${Math.floor(baseMainSize * ratio)}px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
@@ -579,7 +584,7 @@ export class MobileFloatingTimer {
         ctx.font = subFont;
         subWidth = ctx.measureText(sub).width;
       }
-      totalTimeW = mainWidth + subWidth;
+      totalTimeW = mainWidth + subGap + subWidth;
     }
 
     const timeStartX = (CANVAS_WIDTH - totalTimeW) / 2;
@@ -597,8 +602,11 @@ export class MobileFloatingTimer {
 
     if (sub) {
       ctx.font = subFont;
-      ctx.fillStyle = '#A3A3A3';
-      ctx.fillText(sub, timeStartX + mainWidth, timeY);
+      ctx.fillStyle =
+        snap.status === 'paused' || snap.status === 'idle'
+          ? 'rgba(204, 204, 204, 0.65)'
+          : '#CCCCCC';
+      ctx.fillText(sub, timeStartX + mainWidth + subGap, timeY);
     }
 
     // Countdown progress bar inside bottom of card
@@ -621,6 +629,21 @@ export class MobileFloatingTimer {
         drawRoundedRect(ctx, trackX, trackY, Math.max(8, trackW * clamped), trackH, 4);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.fill();
+      }
+    }
+
+    if (this.stream) {
+      for (const track of this.stream.getTracks()) {
+        const captureTrack = track as MediaStreamTrack & {
+          requestFrame?: () => void;
+        };
+        if (typeof captureTrack.requestFrame === 'function') {
+          try {
+            captureTrack.requestFrame();
+          } catch {
+            // Ignore browsers whose captureStream manages frames internally
+          }
+        }
       }
     }
 
@@ -674,6 +697,7 @@ export class MobileFloatingTimer {
     this.isClosing = false;
     this.lastFrameKey = '';
     this.lastMediaMetaKey = '';
+    this.lastPlaybackState = 'none';
     this.detachSessionHandlers();
     this.cleanupElementsOnly();
   }

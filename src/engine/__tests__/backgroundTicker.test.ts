@@ -48,6 +48,10 @@ describe('backgroundTicker', () => {
     expect(latestWorkerInstance).not.toBeNull();
     expect(workerPostMessage).toHaveBeenCalledWith({ type: 'start', intervalMs: 200 });
 
+    // Switching cadence while already running updates the worker interval cleanly
+    ticker.startBackgroundTicker(16);
+    expect(workerPostMessage).toHaveBeenCalledWith({ type: 'start', intervalMs: 16 });
+
     latestWorkerInstance!.onmessage?.(new MessageEvent('message', { data: 'tick' }));
     expect(cb).toHaveBeenCalledTimes(1);
 
