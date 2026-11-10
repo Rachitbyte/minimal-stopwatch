@@ -8,6 +8,7 @@ import { startBackgroundTicker, stopBackgroundTicker, subscribeToBackgroundTick 
 import { TimeDisplay } from './components/TimeDisplay';
 import { CountdownInput } from './components/CountdownInput';
 import { CountdownClock } from './components/CountdownClock';
+import { FloatingTimer } from './components/FloatingTimer';
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -20,9 +21,17 @@ app.innerHTML = `
     <div class="clock-date" style="display: none;"></div>
   </main>
   <footer class="controls">
+    <span class="controls-spacer" aria-hidden="true"></span>
     <button id="btn-reset" class="secondary" style="display: none;">Reset</button>
     <button id="btn-start" class="primary">Start</button>
+    <button id="btn-float" class="secondary icon-btn float-btn" type="button" aria-label="Open floating timer" aria-pressed="false" title="Float timer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="14" rx="2.5" />
+        <rect x="11.5" y="10.5" width="7.5" height="5.5" rx="1.2" fill="currentColor" stroke="none" />
+      </svg>
+    </button>
   </footer>
+  <div id="toast-message" class="toast-message" role="status" aria-live="polite" style="display: none;"></div>
   <button id="btn-fullscreen" aria-label="Enter fullscreen" class="fullscreen-btn" title="Fullscreen" style="display: none;">
     <span class="fs-enter">Full Screen</span>
     <span class="fs-exit" style="display: none;">Normal</span>
@@ -33,8 +42,11 @@ const timeContainer = app.querySelector('.time-container') as HTMLElement;
 const clockDate = app.querySelector('.clock-date') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnReset = document.getElementById('btn-reset') as HTMLButtonElement;
+const btnFloat = document.getElementById('btn-float') as HTMLButtonElement;
 const btnFullscreen = document.getElementById('btn-fullscreen') as HTMLButtonElement;
+const toastEl = document.getElementById('toast-message') as HTMLElement;
 const controls = app.querySelector('.controls') as HTMLElement;
+const controlsSpacer = app.querySelector('.controls-spacer') as HTMLElement;
 const modeButtons = app.querySelectorAll('.mode-switcher button');
 
 if ('requestFullscreen' in document.documentElement) {
@@ -46,9 +58,96 @@ const timeDisplay = new TimeDisplay(timeContainer);
 let countdownInput = new CountdownInput(timeContainer, state.countdown.durationMs);
 const countdownClock = new CountdownClock(timeContainer);
 
+let toastTimeout: ReturnType<typeof setTimeout> | null = null;
+let toastHideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function showToast(message: string) {
+  toastEl.textContent = message;
+  toastEl.style.display = 'block';
+  toastEl.classList.remove('is-visible');
+  void toastEl.offsetHeight;
+  toastEl.classList.add('is-visible');
+
+  if (toastTimeout !== null) clearTimeout(toastTimeout);
+  if (toastHideTimeout !== null) clearTimeout(toastHideTimeout);
+
+  toastTimeout = setTimeout(() => {
+    toastEl.classList.remove('is-visible');
+    toastHideTimeout = setTimeout(() => {
+      toastEl.style.display = 'none';
+    }, 200);
+  }, 3800);
+}
+
+const floatingTimer = new FloatingTimer({
+  getSnapshot: (nowEpoch) => {
+    if (state.mode === 'stopwatch') {
+      return {
+        mode: 'stopwatch',
+        status: state.stopwatch.status,
+        displayMs: getStopwatchElapsed(
+          state.stopwatch.accumulatedMs,
+          state.stopwatch.startedAtEpoch,
+          nowEpoch
+        ),
+        canStart: true
+      };
+    }
+    if (state.mode === 'countdown') {
+      const remaining =
+        state.countdown.status === 'idle'
+          ? state.countdown.durationMs
+          : state.countdown.status === 'done'
+            ? 0
+            : getCountdownRemaining(
+                state.countdown.durationMs,
+                state.countdown.accumulatedMs,
+                state.countdown.startedAtEpoch,
+                nowEpoch
+              );
+      const progress =
+        state.countdown.durationMs > 0
+          ? remaining / state.countdown.durationMs
+          : 0;
+      return {
+        mode: 'countdown',
+        status: state.countdown.status,
+        displayMs: remaining,
+        canStart: state.countdown.durationMs > 0,
+        progress
+      };
+    }
+    return {
+      mode: 'clock',
+      status: 'running',
+      displayMs: getLocalTimeMs(nowEpoch),
+      canStart: false
+    };
+  },
+  onToggleStartPause: () => {
+    toggleStartPause();
+  },
+  onCountdownComplete: () => {
+    completeCountdown();
+  },
+  onOpenChange: (isOpen) => {
+    btnFloat.classList.toggle('is-active', isOpen);
+    btnFloat.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+    btnFloat.setAttribute(
+      'aria-label',
+      isOpen ? 'Close floating timer' : 'Open floating timer'
+    );
+    btnFloat.title = isOpen ? 'Close floating timer' : 'Float timer';
+  },
+  onUnsupportedOrError: (message) => {
+    showToast(message);
+  }
+});
+
 countdownInput.onDurationChange = (ms) => {
   state.countdown.durationMs = ms;
   saveState(state);
+  floatingTimer.sync();
 };
 
 const MODES: TempoMode[] = ['stopwatch', 'countdown', 'clock'];
@@ -60,6 +159,7 @@ function setMode(newMode: TempoMode) {
   renderUI();
   updateTimeDisplay();
   syncLoops();
+  floatingTimer.sync();
 }
 
 modeButtons.forEach(btn => {
@@ -105,11 +205,11 @@ function renderUI() {
     countdownClock.hide();
     
     if (state.stopwatch.status === 'running') {
-      btnStart.textContent = 'Pause'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
+      btnStart.textContent = 'Pause'; btnStart.className = 'secondary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
     } else if (state.stopwatch.status === 'paused') {
-      btnStart.textContent = 'Resume'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
+      btnStart.textContent = 'Resume'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex'; controlsSpacer.style.display = 'none';
     } else { // idle
-      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none';
+      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
     }
   } else if (state.mode === 'countdown') {
     controls.style.visibility = 'visible';
@@ -118,25 +218,25 @@ function renderUI() {
       timeDisplay.el.style.display = 'none';
       countdownClock.hide();
       countdownInput.show();
-      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none';
+      btnStart.textContent = 'Start'; btnStart.className = 'primary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'running') {
       timeDisplay.el.style.display = 'none';
       countdownInput.hide();
       countdownClock.show();
-      btnStart.textContent = 'Pause Countdown'; btnStart.className = 'secondary'; btnReset.style.display = 'none';
+      btnStart.textContent = 'Pause Countdown'; btnStart.className = 'secondary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'paused') {
       timeDisplay.el.style.display = 'none';
       countdownInput.hide();
       countdownClock.show();
-      btnStart.textContent = 'Resume Countdown'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex';
+      btnStart.textContent = 'Resume Countdown'; btnStart.className = 'primary'; btnReset.style.display = 'inline-flex'; controlsSpacer.style.display = 'none';
       timeDisplay.el.classList.remove('pulse');
     } else if (state.countdown.status === 'done') {
       timeDisplay.el.style.display = 'none';
       countdownInput.hide();
       countdownClock.show();
-      btnStart.textContent = 'Dismiss'; btnStart.className = 'primary'; btnReset.style.display = 'none';
+      btnStart.textContent = 'Dismiss'; btnStart.className = 'primary'; btnReset.style.display = 'none'; controlsSpacer.style.display = 'inline-flex';
       timeDisplay.el.classList.add('pulse'); // We'll handle pulsing inside countdownClock for done state
       countdownClock.setPulse(true);
     }
@@ -195,6 +295,7 @@ function completeCountdown() {
   timeDisplay.setIdle(false);
   timeDisplay.updateTime(0);
   countdownClock.update(0, state.countdown.durationMs);
+  floatingTimer.sync();
 }
 
 function updateTimeDisplay() {
@@ -275,39 +376,47 @@ renderUI();
 updateTimeDisplay();
 syncLoops();
 
-btnStart.addEventListener('click', () => {
+function toggleStartPause() {
   if (state.mode === 'stopwatch') {
     if (state.stopwatch.status === 'idle' || state.stopwatch.status === 'paused') {
       state.stopwatch.status = 'running'; state.stopwatch.startedAtEpoch = Date.now();
-      saveState(state); renderUI(); updateTimeDisplay(); syncLoops();
+      saveState(state); renderUI(); updateTimeDisplay(); syncLoops(); floatingTimer.sync();
     } else if (state.stopwatch.status === 'running') {
       state.stopwatch.accumulatedMs = getStopwatchElapsed(state.stopwatch.accumulatedMs, state.stopwatch.startedAtEpoch, Date.now());
       state.stopwatch.startedAtEpoch = null; state.stopwatch.status = 'paused';
-      saveState(state); renderUI(); syncLoops(); updateTimeDisplay();
+      saveState(state); renderUI(); syncLoops(); updateTimeDisplay(); floatingTimer.sync();
     }
   } else if (state.mode === 'countdown') {
     if (state.countdown.status === 'idle' || state.countdown.status === 'paused') {
       if (state.countdown.durationMs === 0) return;
       state.countdown.status = 'running'; state.countdown.startedAtEpoch = Date.now();
-      saveState(state); renderUI(); updateTimeDisplay(); syncLoops();
+      saveState(state); renderUI(); updateTimeDisplay(); syncLoops(); floatingTimer.sync();
     } else if (state.countdown.status === 'running') {
       state.countdown.accumulatedMs = state.countdown.durationMs - getCountdownRemaining(state.countdown.durationMs, state.countdown.accumulatedMs, state.countdown.startedAtEpoch, Date.now());
       state.countdown.startedAtEpoch = null; state.countdown.status = 'paused';
-      saveState(state); renderUI(); syncLoops(); updateTimeDisplay();
+      saveState(state); renderUI(); syncLoops(); updateTimeDisplay(); floatingTimer.sync();
     } else if (state.countdown.status === 'done') {
-      btnReset.click();
+      resetTimer();
     }
   }
-});
+}
 
-btnReset.addEventListener('click', () => {
+function resetTimer() {
   if (state.mode === 'stopwatch') {
     state.stopwatch.status = 'idle'; state.stopwatch.accumulatedMs = 0; state.stopwatch.startedAtEpoch = null;
-    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now()));
+    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); floatingTimer.sync();
   } else if (state.mode === 'countdown') {
     state.countdown.status = 'idle'; state.countdown.accumulatedMs = 0; state.countdown.startedAtEpoch = null;
-    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now()));
+    saveState(state); renderUI(); timeDisplay.resetInstant(); syncLoops(); setDocumentTitle(getTabTitle(state, Date.now())); floatingTimer.sync();
   }
+}
+
+btnStart.addEventListener('click', toggleStartPause);
+
+btnReset.addEventListener('click', resetTimer);
+
+btnFloat.addEventListener('click', () => {
+  void floatingTimer.toggle();
 });
 
 timeContainer.addEventListener('click', (e) => {
